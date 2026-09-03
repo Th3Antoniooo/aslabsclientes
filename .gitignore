@@ -1,0 +1,14 @@
+node_modules/
+dist/
+out/
+output/
+tmp/
+designs/
+.pnpm-store/
+
+.DS_Store
+*.log
+
+.vercel/
+.vercel-*/
+.env*

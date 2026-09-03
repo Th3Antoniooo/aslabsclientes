@@ -1,0 +1,8 @@
+.DS_Store
+dist
+node_modules
+.pnpm-store
+output
+tmp
+designs
+*.log
