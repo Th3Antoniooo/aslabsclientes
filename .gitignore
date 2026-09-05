@@ -5,6 +5,7 @@ output/
 tmp/
 designs/
 .pnpm-store/
+src/assets/game-wallpapers/
 
 .DS_Store
 *.log
