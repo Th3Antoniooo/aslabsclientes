@@ -78,14 +78,19 @@ const results = [
   },
 ]
 
-const samplePhoto = await fs.readFile(path.join(root, 'src', 'assets', 'aslabs-logo.png'))
+const fixtureDirectory = process.env.PDF_EVIDENCE_FIXTURES
+const fixtureNames = fixtureDirectory
+  ? (await fs.readdir(fixtureDirectory)).filter((name) => /\.(jpe?g|png|webp)$/i.test(name)).slice(0, 10)
+  : []
+const fixturePhotos = await Promise.all(fixtureNames.map((name) => fs.readFile(path.join(fixtureDirectory, name))))
+const fallbackPhoto = await fs.readFile(path.join(root, 'src', 'assets', 'aslabs-logo.png'))
 const evidencePhotos = Array.from({ length: 10 }, (_, index) => ({
-  file_name: `evidencia-${index + 1}.png`,
+  file_name: fixtureNames[index] || `evidencia-${index + 1}.png`,
   title: `Fotografía ${index + 1}. Evidencia del procedimiento analítico`,
   note: index % 2
     ? 'Registro complementario de las condiciones observadas durante el procesamiento de la muestra.'
     : 'Vista general del material evaluado y de su disposición durante la etapa documentada.',
-  data_url: `data:image/png;base64,${samplePhoto.toString('base64')}`,
+  data_url: `data:image;base64,${(fixturePhotos[index] || fallbackPhoto).toString('base64')}`,
 }))
 
 const buffer = await createFinalReportPdf({

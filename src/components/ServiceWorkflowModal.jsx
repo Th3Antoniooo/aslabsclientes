@@ -878,7 +878,7 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
                 </div>}
               </article> })()}</div>
               <div className="workflow-result-photos">
-                <div><span className="field-label">Fotografías de resultados <b>{resultPhotos.length}/10</b></span><small>El PDF mostrará 4 fotografías por hoja horizontal, en dos columnas. Edita el título y agrega una nota cuando sea necesario.</small></div>
+                <div><span className="field-label">Fotografías de resultados <b>{resultPhotos.length}/10</b></span><small>El PDF mostrará 4 fotografías por hoja horizontal, en dos columnas, y las agrupará automáticamente por tamaño y orientación. Edita el título y agrega una nota cuando sea necesario.</small></div>
                 {canEnterResults && <label className={`btn btn-ghost btn-sm photo-upload ${resultPhotos.length >= 10 ? 'disabled' : ''}`}><IcoCamera /> Agregar fotografías<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple disabled={resultPhotos.length >= 10} onChange={addResultPhotos} /></label>}
                 {resultPhotos.length > 0 && <div className="workflow-result-photo-grid">{resultPhotos.map((photo, index) => <figure key={photo.id || `${photo.fileName}-${index}`}>
                   <div className="workflow-result-photo-preview"><img src={photo.dataUrl} alt={photo.title || photo.fileName} /><span>{index + 1}</span>{canEnterResults && <button type="button" aria-label={`Eliminar fotografía ${index + 1}`} onClick={() => setResultPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button>}</div>

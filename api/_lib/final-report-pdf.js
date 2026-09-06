@@ -190,6 +190,32 @@ function signatures(doc, { y, responsibleName, approver, approvalStatus }) {
   return y + height + 14
 }
 
+function orderedEvidencePhotos(doc, evidencePhotos = []) {
+  const orientationRank = { landscape: 0, square: 1, portrait: 2 }
+  return evidencePhotos.slice(0, 10).map((photo, originalIndex) => {
+    let imageBuffer = null
+    let width = 1
+    let height = 1
+    try {
+      imageBuffer = Buffer.from(String(photo.data_url || '').split(',')[1] || '', 'base64')
+      if (imageBuffer.length) {
+        const image = doc.openImage(imageBuffer)
+        width = Number(image.width) || 1
+        height = Number(image.height) || 1
+      }
+    } catch {
+      imageBuffer = null
+    }
+    const aspectRatio = width / height
+    const orientation = aspectRatio > 1.18 ? 'landscape' : aspectRatio < .82 ? 'portrait' : 'square'
+    return { ...photo, imageBuffer, orientation, area: width * height, originalIndex }
+  }).sort((a, b) => (
+    orientationRank[a.orientation] - orientationRank[b.orientation]
+    || b.area - a.area
+    || a.originalIndex - b.originalIndex
+  ))
+}
+
 function footer(doc, service) {
   const range = doc.bufferedPageRange()
   for (let i = range.start; i < range.start + range.count; i += 1) {
@@ -251,7 +277,7 @@ export async function createFinalReportPdf({ service, results = [], samples = []
     ], y)
 
     if (evidencePhotos.length) {
-      const photos = evidencePhotos.slice(0, 10)
+      const photos = orderedEvidencePhotos(doc, evidencePhotos)
       const gap = 10
       const width = (P.width - gap) / 2
       const height = 198
@@ -266,10 +292,14 @@ export async function createFinalReportPdf({ service, results = [], samples = []
           const top = y + row * (height + 8)
           doc.roundedRect(x, top, width, height, 7).fill(C.white).strokeColor(C.line).lineWidth(.65).stroke()
           doc.roundedRect(x + 6, top + 6, width - 12, 142, 5).fill(C.soft)
-          try {
-            const imageBuffer = Buffer.from(String(photo.data_url || '').split(',')[1] || '', 'base64')
-            if (imageBuffer.length) doc.image(imageBuffer, x + 6, top + 6, { cover: [width - 12, 142], align: 'center', valign: 'center' })
-          } catch {}
+          if (photo.imageBuffer?.length) {
+            doc.save()
+            doc.roundedRect(x + 6, top + 6, width - 12, 142, 5).clip()
+            doc.image(photo.imageBuffer, x + 6, top + 6, {
+              fit: [width - 12, 142], align: 'center', valign: 'center',
+            })
+            doc.restore()
+          }
           doc.circle(x + 19, top + 19, 9).fill(C.deep)
           doc.fillColor(C.white).font('Arial-Bold').fontSize(7).text(String(index + 1), x + 10, top + 15.5, { width: 18, align: 'center' })
           doc.fillColor(C.ink).font('Arial-Bold').fontSize(7.5).text(
