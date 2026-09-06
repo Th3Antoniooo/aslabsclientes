@@ -78,10 +78,21 @@ const results = [
   },
 ]
 
+const samplePhoto = await fs.readFile(path.join(root, 'src', 'assets', 'aslabs-logo.png'))
+const evidencePhotos = Array.from({ length: 10 }, (_, index) => ({
+  file_name: `evidencia-${index + 1}.png`,
+  title: `Fotografía ${index + 1}. Evidencia del procedimiento analítico`,
+  note: index % 2
+    ? 'Registro complementario de las condiciones observadas durante el procesamiento de la muestra.'
+    : 'Vista general del material evaluado y de su disposición durante la etapa documentada.',
+  data_url: `data:image/png;base64,${samplePhoto.toString('base64')}`,
+}))
+
 const buffer = await createFinalReportPdf({
   service,
   results,
   samples,
+  evidencePhotos,
   responsibleName: 'Rosa Nancy Mejía Ruedell Malabrigo',
   approver: { full_name: 'Antonio Guevara Escobar', approved_at: '2026-08-19T11:30:00-05:00' },
   approvalStatus: 'approved',

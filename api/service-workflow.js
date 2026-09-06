@@ -16,15 +16,18 @@ const REPORT_APPROVERS = new Set([
 ])
 const canApproveReport = (user) => user.role === 'admin' && REPORT_APPROVERS.has(String(user.email || '').toLowerCase())
 
-let finalReportNarrativeColumnsPromise
-function ensureFinalReportNarrativeColumns() {
-  if (!finalReportNarrativeColumnsPromise) {
-    finalReportNarrativeColumnsPromise = Promise.all([
+let reportColumnsPromise
+function ensureReportColumns() {
+  if (!reportColumnsPromise) {
+    reportColumnsPromise = Promise.all([
       query(`ALTER TABLE service_final_reports ADD COLUMN IF NOT EXISTS interpretation text`),
       query(`ALTER TABLE service_final_reports ADD COLUMN IF NOT EXISTS observations text`),
+      query(`ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS title text`),
+      query(`ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS note text`),
+      query(`ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS display_order integer NOT NULL DEFAULT 0`),
     ])
   }
-  return finalReportNarrativeColumnsPromise
+  return reportColumnsPromise
 }
 
 async function accessibleService(user, serviceId) {
@@ -211,8 +214,8 @@ async function workflowPayload(serviceId, user) {
     [serviceId],
   ) : []
   const resultPhotos = includeInternal ? await query(
-    `SELECT id,file_name,mime_type,data_url,created_at
-     FROM service_analysis_photos WHERE service_id=$1 ORDER BY created_at`,
+    `SELECT id,file_name,title,note,display_order,mime_type,data_url,created_at
+     FROM service_analysis_photos WHERE service_id=$1 ORDER BY display_order,created_at`,
     [serviceId],
   ) : []
   return { stages, events, analysts, crewAssignments, availableCrews, finalReports, equipmentRuns, laboratoryProcesses, sampleGate, results, resultPhotos, canApproveReport: canApproveReport(user) }
@@ -310,7 +313,7 @@ async function finalReportContext(serviceId) {
        ORDER BY r.updated_at DESC,r.created_at DESC LIMIT 1`,
       [serviceId],
     ),
-    query(`SELECT id,file_name,mime_type,data_url,created_at FROM service_analysis_photos WHERE service_id=$1 ORDER BY created_at`, [serviceId]),
+    query(`SELECT id,file_name,title,note,display_order,mime_type,data_url,created_at FROM service_analysis_photos WHERE service_id=$1 ORDER BY display_order,created_at`, [serviceId]),
   ])
   const service = services[0]
   if (service) service.service_type_name = service.display_name || service.service_type_name
@@ -330,6 +333,12 @@ function validPhoto(photo) {
     && typeof photo.dataUrl === 'string'
     && photo.dataUrl.startsWith(`data:${photo.mimeType};base64,`)
     && photo.dataUrl.length <= 1_100_000
+}
+
+function photoMetadata(photo, index) {
+  const title = String(photo?.title || photo?.fileName || `Fotografía ${index + 1}`).trim().slice(0, 120)
+  const note = String(photo?.note || '').trim().slice(0, 500)
+  return { title: title || `Fotografía ${index + 1}`, note: note || null, displayOrder: index }
 }
 
 function validFinalReport(report) {
@@ -396,7 +405,7 @@ export default async function handler(req, res) {
   const serviceId = req.query?.serviceId
   if (!serviceId) return json(res, 400, { error: 'Falta el servicio.' })
 
-  await ensureFinalReportNarrativeColumns()
+  await ensureReportColumns()
 
   const service = await accessibleService(user, serviceId)
   if (!service) return json(res, 404, { error: 'Servicio no encontrado.' })
@@ -547,8 +556,17 @@ export default async function handler(req, res) {
       return json(res, 400, { error: 'Selecciona un código de muestra válido para cada resultado.' })
     }
     const photos = Array.isArray(payload.photos) ? payload.photos : []
-    if (photos.length > 3 || photos.some((photo) => !validPhoto(photo))) {
-      return json(res, 400, { error: 'Adjunta como máximo 3 fotografías JPG, PNG o WebP.' })
+    const existingPhotos = photos.filter((photo) => /^[0-9a-f-]{36}$/i.test(String(photo?.id || '')))
+    const newPhotos = photos.filter((photo) => !photo?.id)
+    if (photos.length > 10 || newPhotos.some((photo) => !validPhoto(photo)) || existingPhotos.length + newPhotos.length !== photos.length) {
+      return json(res, 400, { error: 'Adjunta como máximo 10 fotografías JPG, PNG o WebP.' })
+    }
+    if (existingPhotos.length) {
+      const stored = await query(
+        `SELECT id FROM service_analysis_photos WHERE service_id=$1 AND id=ANY($2::uuid[])`,
+        [serviceId, existingPhotos.map((photo) => photo.id)],
+      )
+      if (stored.length !== existingPhotos.length) return json(res, 400, { error: 'Una de las fotografías ya no pertenece a este servicio.' })
     }
     await query(
       `WITH removed AS (
@@ -565,13 +583,31 @@ export default async function handler(req, res) {
        FROM rows`,
       [serviceId, JSON.stringify(results), user.id, user.activeWorker?.id || null],
     )
-    await query(`DELETE FROM service_analysis_photos WHERE service_id=$1`, [serviceId])
-    for (const photo of photos) {
+    const retainedIds = existingPhotos.map((photo) => photo.id)
+    if (retainedIds.length) {
+      await query(
+        `DELETE FROM service_analysis_photos
+         WHERE service_id=$1 AND NOT (id=ANY($2::uuid[]))`,
+        [serviceId, retainedIds],
+      )
+    } else {
+      await query(`DELETE FROM service_analysis_photos WHERE service_id=$1`, [serviceId])
+    }
+    for (const [index, photo] of existingPhotos.entries()) {
+      const metadata = photoMetadata(photo, index)
+      await query(
+        `UPDATE service_analysis_photos SET title=$3,note=$4,display_order=$5
+         WHERE service_id=$1 AND id=$2`,
+        [serviceId, photo.id, metadata.title, metadata.note, metadata.displayOrder],
+      )
+    }
+    for (const [offset, photo] of newPhotos.entries()) {
+      const metadata = photoMetadata(photo, existingPhotos.length + offset)
       await query(
         `INSERT INTO service_analysis_photos
-         (service_id,file_name,mime_type,data_url,uploaded_by_user_id,uploaded_by_analyst_id)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [serviceId,photo.fileName,photo.mimeType,photo.dataUrl,user.id,user.activeWorker?.id || null],
+         (service_id,file_name,title,note,display_order,mime_type,data_url,uploaded_by_user_id,uploaded_by_analyst_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [serviceId,photo.fileName,metadata.title,metadata.note,metadata.displayOrder,photo.mimeType,photo.dataUrl,user.id,user.activeWorker?.id || null],
       )
     }
     await query(

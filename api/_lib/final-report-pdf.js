@@ -251,21 +251,41 @@ export async function createFinalReportPdf({ service, results = [], samples = []
     ], y)
 
     if (evidencePhotos.length) {
-      if (y > P.bottom - 135) y = addPage()
-      y = section(doc, 'Evidencia fotográfica', y)
-      const gap = 8, width = (P.width - gap) / 2, height = 106
-      evidencePhotos.slice(0, 6).forEach((photo, index) => {
-        if (index > 0 && index % 2 === 0) y += height + 7
-        if (index > 0 && index % 2 === 0 && y + height > P.bottom) { y = addPage(); y = section(doc, 'Evidencia fotográfica · continuación', y) }
-        const x = P.left + (index % 2) * (width + gap)
-        doc.roundedRect(x, y, width, height, 7).fill(C.soft).strokeColor(C.line).stroke()
-        try {
-          const imageBuffer = Buffer.from(String(photo.data_url || '').split(',')[1] || '', 'base64')
-          if (imageBuffer.length) doc.image(imageBuffer, x + 5, y + 5, { fit: [width - 10, 82], align: 'center', valign: 'center' })
-        } catch {}
-        doc.fillColor(C.muted).font('Arial').fontSize(6.8).text(clean(photo.file_name, `Fotografía ${index + 1}`), x + 5, y + 91, { width: width - 10, height: 9, align: 'center', ellipsis: true })
-      })
-      y += height + 8
+      const photos = evidencePhotos.slice(0, 10)
+      const gap = 10
+      const width = (P.width - gap) / 2
+      const height = 198
+      for (let pageStart = 0; pageStart < photos.length; pageStart += 4) {
+        y = addPage()
+        y = section(doc, pageStart ? 'Evidencia fotográfica · continuación' : 'Evidencia fotográfica', y)
+        photos.slice(pageStart, pageStart + 4).forEach((photo, pageIndex) => {
+          const index = pageStart + pageIndex
+          const row = Math.floor(pageIndex / 2)
+          const column = pageIndex % 2
+          const x = P.left + column * (width + gap)
+          const top = y + row * (height + 8)
+          doc.roundedRect(x, top, width, height, 7).fill(C.white).strokeColor(C.line).lineWidth(.65).stroke()
+          doc.roundedRect(x + 6, top + 6, width - 12, 142, 5).fill(C.soft)
+          try {
+            const imageBuffer = Buffer.from(String(photo.data_url || '').split(',')[1] || '', 'base64')
+            if (imageBuffer.length) doc.image(imageBuffer, x + 6, top + 6, { cover: [width - 12, 142], align: 'center', valign: 'center' })
+          } catch {}
+          doc.circle(x + 19, top + 19, 9).fill(C.deep)
+          doc.fillColor(C.white).font('Arial-Bold').fontSize(7).text(String(index + 1), x + 10, top + 15.5, { width: 18, align: 'center' })
+          doc.fillColor(C.ink).font('Arial-Bold').fontSize(7.5).text(
+            clean(photo.title || photo.file_name, `Fotografía ${index + 1}`),
+            x + 8, top + 155, { width: width - 16, height: 11, ellipsis: true },
+          )
+          doc.fillColor(C.muted).font('Arial').fontSize(6.7).text(
+            clean(photo.note, 'Sin nota adicional.'),
+            x + 8, top + 170, { width: width - 16, height: 20, lineGap: .5, ellipsis: true },
+          )
+        })
+        y += Math.ceil(Math.min(4, photos.length - pageStart) / 2) * (height + 8)
+      }
+      // Keep evidence pages exclusively for photographs, even when the last
+      // page contains fewer than four images.
+      y = addPage()
     }
 
     if (y > P.bottom - 90) y = addPage()

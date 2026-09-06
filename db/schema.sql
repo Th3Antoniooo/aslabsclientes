@@ -360,14 +360,20 @@ CREATE TABLE IF NOT EXISTS service_analysis_photos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id uuid NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
   file_name text NOT NULL,
+  title text,
+  note text,
+  display_order integer NOT NULL DEFAULT 0,
   mime_type text NOT NULL CHECK (mime_type IN ('image/jpeg','image/png','image/webp')),
   data_url text NOT NULL,
   uploaded_by_user_id uuid NOT NULL REFERENCES users(id),
   uploaded_by_analyst_id uuid REFERENCES analysts(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS title text;
+ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS note text;
+ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS display_order integer NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS service_analysis_photos_service_idx
-  ON service_analysis_photos(service_id, created_at);
+  ON service_analysis_photos(service_id, display_order, created_at);
 
 CREATE TABLE IF NOT EXISTS laboratory_equipment (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

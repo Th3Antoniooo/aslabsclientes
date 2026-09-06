@@ -20,15 +20,17 @@ function toDateTimeInput(value) {
 
 async function compressPhoto(file) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Selecciona imágenes JPG, PNG o WebP.')
+  let objectUrl = ''
   const source = typeof createImageBitmap === 'function'
     ? await createImageBitmap(file)
     : await new Promise((resolve, reject) => {
         const image = new Image()
         image.onload = () => resolve(image)
         image.onerror = () => reject(new Error('No fue posible leer esta fotografía.'))
-        image.src = URL.createObjectURL(file)
+        objectUrl = URL.createObjectURL(file)
+        image.src = objectUrl
       })
-  const maxSide = 1280
+  const maxSide = 900
   const scale = Math.min(1, maxSide / Math.max(source.width, source.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(source.width * scale))
@@ -36,10 +38,18 @@ async function compressPhoto(file) {
   const context = canvas.getContext('2d')
   context.drawImage(source, 0, 0, canvas.width, canvas.height)
   source.close?.()
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.72)
-  if (dataUrl.length > 1_100_000) throw new Error('Una fotografía sigue siendo demasiado grande después de comprimirla.')
+  if (objectUrl) URL.revokeObjectURL(objectUrl)
+  let quality = .68
+  let dataUrl = canvas.toDataURL('image/jpeg', quality)
+  while (dataUrl.length > 350_000 && quality > .4) {
+    quality -= .08
+    dataUrl = canvas.toDataURL('image/jpeg', quality)
+  }
+  if (dataUrl.length > 350_000) throw new Error('Una fotografía sigue siendo demasiado grande después de comprimirla. Prueba con una imagen de menor resolución.')
   return {
     fileName: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+    title: file.name.replace(/\.[^.]+$/, ''),
+    note: '',
     mimeType: 'image/jpeg',
     dataUrl,
   }
@@ -218,7 +228,7 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
         setResultRows(rows)
         setActiveResultSample((current) => codes.includes(current) ? current : codes[0] || '')
       }
-      if (!silent) setResultPhotos((result.resultPhotos || []).map((photo) => ({ id: photo.id, fileName: photo.file_name, mimeType: photo.mime_type, dataUrl: photo.data_url })))
+      if (!silent) setResultPhotos((result.resultPhotos || []).map((photo, index) => ({ id: photo.id, fileName: photo.file_name, title: photo.title || photo.file_name?.replace(/\.[^.]+$/, '') || `Fotografía ${index + 1}`, note: photo.note || '', mimeType: photo.mime_type, dataUrl: photo.data_url })))
       setActivePanel((current) => current || (result.sampleGate?.required === false ? 'trace' : Number(result.sampleGate?.total || 0) === 0 ? 'sample' : 'trace'))
       setError('')
     } catch (requestError) {
@@ -455,8 +465,8 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
 
   const addResultPhotos = async (event) => {
     const files = Array.from(event.target.files || [])
-    if (files.length + resultPhotos.length > 3) {
-      setError('Puedes adjuntar como máximo 3 fotografías de resultados.')
+    if (files.length + resultPhotos.length > 10) {
+      setError('Puedes adjuntar como máximo 10 fotografías de resultados.')
       event.target.value = ''
       return
     }
@@ -472,13 +482,13 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
   const saveResults = async () => {
     setWorking(true); setError('')
     try {
-      const result = await api.saveServiceResults(service.id, resultRows, resultPhotos.map(({ fileName, mimeType, dataUrl }) => ({ fileName, mimeType, dataUrl })))
+      const result = await api.saveServiceResults(service.id, resultRows, resultPhotos.map(({ id, fileName, title, note, mimeType, dataUrl }) => id ? ({ id, title, note }) : ({ fileName, title, note, mimeType, dataUrl })))
       setData(result)
       const rows = sampleResultRows(result.service, result.results || [])
       const codes = [...new Set(rows.map((row) => row.sampleCode).filter(Boolean))]
       setResultRows(rows)
       setActiveResultSample((current) => codes.includes(current) ? current : codes[0] || '')
-      setResultPhotos((result.resultPhotos || []).map((photo) => ({ id: photo.id, fileName: photo.file_name, mimeType: photo.mime_type, dataUrl: photo.data_url })))
+      setResultPhotos((result.resultPhotos || []).map((photo, index) => ({ id: photo.id, fileName: photo.file_name, title: photo.title || photo.file_name?.replace(/\.[^.]+$/, '') || `Fotografía ${index + 1}`, note: photo.note || '', mimeType: photo.mime_type, dataUrl: photo.data_url })))
       notify('Resultados guardados en la orden.')
     } catch (requestError) { setError(requestError.message) }
     finally { setWorking(false) }
@@ -868,9 +878,15 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
                 </div>}
               </article> })()}</div>
               <div className="workflow-result-photos">
-                <div><span className="field-label">Fotografías de resultados</span><small>Se incorporarán automáticamente al informe.</small></div>
-                {canEnterResults && <label className="btn btn-ghost btn-sm photo-upload"><IcoCamera /> Agregar fotografías<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onChange={addResultPhotos} /></label>}
-                {resultPhotos.length > 0 && <div className="workflow-result-photo-grid">{resultPhotos.map((photo, index) => <figure key={photo.id || `${photo.fileName}-${index}`}><img src={photo.dataUrl} alt={photo.fileName} />{canEnterResults && <button type="button" onClick={() => setResultPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button>}<figcaption>{photo.fileName}</figcaption></figure>)}</div>}
+                <div><span className="field-label">Fotografías de resultados <b>{resultPhotos.length}/10</b></span><small>El PDF mostrará 4 fotografías por hoja horizontal, en dos columnas. Edita el título y agrega una nota cuando sea necesario.</small></div>
+                {canEnterResults && <label className={`btn btn-ghost btn-sm photo-upload ${resultPhotos.length >= 10 ? 'disabled' : ''}`}><IcoCamera /> Agregar fotografías<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple disabled={resultPhotos.length >= 10} onChange={addResultPhotos} /></label>}
+                {resultPhotos.length > 0 && <div className="workflow-result-photo-grid">{resultPhotos.map((photo, index) => <figure key={photo.id || `${photo.fileName}-${index}`}>
+                  <div className="workflow-result-photo-preview"><img src={photo.dataUrl} alt={photo.title || photo.fileName} /><span>{index + 1}</span>{canEnterResults && <button type="button" aria-label={`Eliminar fotografía ${index + 1}`} onClick={() => setResultPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button>}</div>
+                  <figcaption>
+                    <label><span>Título</span><input disabled={!canEnterResults} value={photo.title || ''} maxLength="120" onChange={(event) => setResultPhotos((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item))} placeholder={`Fotografía ${index + 1}`} /></label>
+                    <label><span>Nota <small>Opcional</small></span><textarea disabled={!canEnterResults} value={photo.note || ''} maxLength="500" rows="2" onChange={(event) => setResultPhotos((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, note: event.target.value } : item))} placeholder="Describe lo observado en la imagen" /></label>
+                  </figcaption>
+                </figure>)}</div>}
               </div>
               {canEnterResults && <footer><div className="workflow-results-save-note"><strong>{resultGroups.length} {resultGroups.length === 1 ? 'muestra preparada' : 'muestras preparadas'}</strong><small>Puedes volver a cualquier muestra antes de guardar.</small></div><button type="button" className="btn btn-primary" disabled={working || !canRegisterResults} onClick={saveResults}>{working ? 'Guardando…' : 'Guardar todos los resultados'}</button></footer>}
             </section>}
