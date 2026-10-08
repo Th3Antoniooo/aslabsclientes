@@ -6,7 +6,7 @@ const STATE = {
   delivered: ['Entregado', 'success'], opened: ['Abierto', 'success'], clicked: ['Enlace abierto', 'success'],
   sent: ['Enviado', 'sent'], pending: ['Pendiente', 'pending'], delivery_delayed: ['Demorado', 'pending'],
   bounced: ['Rebotado', 'danger'], complained: ['Marcado como spam', 'danger'], failed: ['Error', 'danger'],
-  skipped: ['Omitido por modo de prueba', 'muted'],
+  skipped: ['Omitido', 'muted'],
 }
 const EVENT = {
   order_created: 'Orden registrada', sample_rescheduled: 'Reprogramación de muestra',
