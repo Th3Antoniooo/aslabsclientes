@@ -1,8 +1,8 @@
 import crypto from 'node:crypto'
-import { getUser } from './_lib/auth.js'
-import { query } from './_lib/db.js'
-import { body, json, methodNotAllowed } from './_lib/http.js'
-import { sendPaymentRequestEmail } from './_lib/email.js'
+import { getUser } from './auth.js'
+import { query } from './db.js'
+import { body, json, methodNotAllowed } from './http.js'
+import { sendPaymentRequestEmail } from './email.js'
 
 const TEST_RECIPIENT = 'antonioavg041@gmail.com'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i

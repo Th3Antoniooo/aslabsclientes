@@ -25,24 +25,24 @@ export const api = {
     body: JSON.stringify({ action: 'lock_worker' }),
   }),
   notifications: () => request('/api/notifications'),
-  payments: () => request('/api/payments'),
-  createPaymentRequest: (payload) => request('/api/payments', {
+  payments: () => request('/api/services?payments=1'),
+  createPaymentRequest: (payload) => request('/api/services?payments=1', {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
-  uploadPaymentReceipt: (payload) => request('/api/payments', {
+  uploadPaymentReceipt: (payload) => request('/api/services?payments=1', {
     method: 'PATCH',
     body: JSON.stringify({ action:'upload_receipt',...payload }),
   }),
-  reviewPaymentRequest: (paymentId, decision, notes = '') => request('/api/payments', {
+  reviewPaymentRequest: (paymentId, decision, notes = '') => request('/api/services?payments=1', {
     method: 'PATCH',
     body: JSON.stringify({ action:'review',paymentId,decision,notes }),
   }),
-  cancelPaymentRequest: (paymentId) => request('/api/payments', {
+  cancelPaymentRequest: (paymentId) => request('/api/services?payments=1', {
     method: 'PATCH',
     body: JSON.stringify({ action:'cancel',paymentId }),
   }),
-  issueFiscalDocument: (paymentId) => request('/api/payments', {
+  issueFiscalDocument: (paymentId) => request('/api/services?payments=1', {
     method: 'PATCH',
     body: JSON.stringify({ action:'issue_fiscal_document',paymentId }),
   }),

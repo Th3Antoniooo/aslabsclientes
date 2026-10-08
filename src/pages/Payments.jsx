@@ -192,8 +192,8 @@ export default function Payments({ user, notify }) {
 
               <section className="payment-receipts">
                 <header><div><span className="eyebrow">Sustento</span><h3>Comprobantes adjuntos</h3></div><span>{selected.receipts?.length || 0}</span></header>
-                {selected.receipts?.length ? <div className="payment-receipt-grid">{selected.receipts.map((receipt,index) => <a href={`/api/payments?receipt=${encodeURIComponent(receipt.id)}`} target="_blank" rel="noreferrer" key={receipt.id} className="payment-receipt-card">
-                  <span className="payment-receipt-preview">{receipt.mime_type === 'application/pdf' ? <b>PDF</b> : <img src={`/api/payments?receipt=${encodeURIComponent(receipt.id)}`} alt={`Comprobante ${index + 1}`} />}</span>
+                {selected.receipts?.length ? <div className="payment-receipt-grid">{selected.receipts.map((receipt,index) => <a href={`/api/services?payments=1&receipt=${encodeURIComponent(receipt.id)}`} target="_blank" rel="noreferrer" key={receipt.id} className="payment-receipt-card">
+                  <span className="payment-receipt-preview">{receipt.mime_type === 'application/pdf' ? <b>PDF</b> : <img src={`/api/services?payments=1&receipt=${encodeURIComponent(receipt.id)}`} alt={`Comprobante ${index + 1}`} />}</span>
                   <span><strong>{receipt.file_name}</strong><small>{receipt.uploaded_by_role === 'admin' ? 'Subido por AS Labs' : 'Subido por el cliente'} · {date(receipt.created_at,true)}</small>{receipt.payment_reference && <em>Op. {receipt.payment_reference}</em>}</span>
                 </a>)}</div> : <div className="payment-receipts-empty"><IcoFile /><strong>Aún no hay comprobantes</strong><span>Puedes adjuntar varios archivos en una sola selección.</span></div>}
               </section>

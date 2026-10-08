@@ -6,6 +6,7 @@ import { initializeWorkflow } from './_lib/workflow.js'
 import labOperationsHandler from './_lib/lab-operations-handler.js'
 import microbiologyHandler from './_lib/microbiology-handler.js'
 import procurementHandler from './_lib/procurement-handler.js'
+import paymentsHandler from './_lib/payments-handler.js'
 import { sendOrderCreatedEmail, sendScheduleEmail } from './_lib/email.js'
 
 function serviceCode() {
@@ -124,6 +125,7 @@ async function replaceServiceAnalysts(serviceId, ids, user) {
 }
 
 export default async function handler(req, res) {
+  if (req.query?.payments === '1') return paymentsHandler(req, res)
   if (req.query?.procurement === '1') return procurementHandler(req, res)
   if (req.query?.labOperations === '2') return microbiologyHandler(req, res)
   if (req.query?.labOperations === '1') return labOperationsHandler(req, res)
