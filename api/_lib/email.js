@@ -9,9 +9,6 @@ const APP_URL = String(
 const FROM = process.env.EMAIL_FROM || 'AS LABS - Trujillo <ventas@aslaboratorios.com>'
 const LOGO_URL = process.env.EMAIL_LOGO_URL || `${APP_URL}/assets/aslabs-logo-D8AX0wID.png`
 const BANNER_URL = process.env.EMAIL_BANNER_URL || `${APP_URL}/assets/aslabs-banner-CF1Vn5oW.webp`
-// Mientras el portal esté en pruebas, ningún correo transaccional puede salir a clientes reales.
-// Este valor es deliberadamente fijo para que una variable mal configurada no quite el bloqueo.
-const TEST_RECIPIENT = 'antonioavg041@gmail.com'
 
 const clean = (value = '') => String(value || '').trim()
 const escapeHtml = (value = '') => clean(value).replace(/[&<>"']/g, (character) => ({
@@ -43,7 +40,7 @@ function clientRecipient(context) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null
 }
 
-export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU SERVICIO', headline, intro, details = [], buttonLabel, buttonUrl, extraHtml = '', intendedRecipient = '' }) {
+export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU SERVICIO', headline, intro, details = [], buttonLabel, buttonUrl, extraHtml = '' }) {
   const detailRows = details.filter((row) => row?.value).map((row) => `
     <tr>
       <td style="padding:13px 16px;color:#748078;width:155px;vertical-align:top;border-bottom:1px solid #e5ebe7;font-size:13px;text-transform:uppercase;letter-spacing:.5px">${escapeHtml(row.label)}</td>
@@ -56,7 +53,6 @@ export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU S
 <div style="display:none;max-height:0;overflow:hidden;color:transparent">${escapeHtml(headline)} · AS LABS - Trujillo</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#edf3ee;padding:30px 10px"><tr><td align="center">
   <table role="presentation" width="720" cellspacing="0" cellpadding="0" style="max-width:720px;width:100%;background:#fff;border:1px solid #d8e4dc;border-radius:24px;overflow:hidden;box-shadow:0 16px 40px rgba(16,63,40,.08)">
-    <tr><td style="padding:11px 24px;background:#fff4d9;border-bottom:1px solid #f2d79e;color:#83500f;font-size:12px;line-height:1.5;text-align:center"><strong>MODO DE PRUEBAS</strong> · Entrega bloqueada al correo de prueba. Destinatario previsto: <strong>${escapeHtml(intendedRecipient || 'sin correo registrado')}</strong>.</td></tr>
     <tr><td style="padding:22px 36px 18px;background:#fff"><img src="${escapeHtml(LOGO_URL)}" width="270" alt="AS Labs · Desde 1997" style="display:block;width:270px;max-width:76%;height:auto;border:0"></td></tr>
     <tr><td><img src="${escapeHtml(BANNER_URL)}" width="720" alt="Laboratorio AS Labs" style="display:block;width:100%;height:230px;object-fit:cover;border:0"></td></tr>
     <tr><td style="padding:38px 44px 42px">
@@ -104,9 +100,8 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
       await deliveryRecord({ eventKey,eventType,context,recipient:null,subject:resolvedSubject,status:'skipped',error:'El cliente no tiene un correo válido registrado.' })
       return { status: 'skipped', reason: 'missing_recipient_email' }
     }
-    const recipient = TEST_RECIPIENT
-    const testingSubject = `[PRUEBA] ${resolvedSubject}`
-    const deliveryId = await deliveryRecord({ eventKey,eventType,context,recipient,subject:testingSubject })
+    const recipient = intendedRecipient
+    const deliveryId = await deliveryRecord({ eventKey,eventType,context,recipient,subject:resolvedSubject })
     if (!deliveryId) return { status: 'duplicate' }
     if (!process.env.RESEND_API_KEY) {
       await query(`UPDATE email_deliveries SET error_message='RESEND_API_KEY pendiente de configuración',updated_at=NOW() WHERE id=$1`, [deliveryId])
@@ -115,7 +110,7 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
     const resolvedDetails = typeof details === 'function' ? details(context) : details
     const resolvedButtonUrl = buttonUrlFactory ? await buttonUrlFactory(context) : buttonUrl
     const resolvedExtraHtml = extraHtmlFactory ? await extraHtmlFactory(context) : extraHtml
-    const previewHtml = renderEmailTemplate({ context,eyebrow:resolvedEyebrow,headline:resolvedHeadline,intro:resolvedIntro,details:resolvedDetails,buttonLabel,buttonUrl:resolvedButtonUrl,extraHtml:resolvedExtraHtml,intendedRecipient })
+    const previewHtml = renderEmailTemplate({ context,eyebrow:resolvedEyebrow,headline:resolvedHeadline,intro:resolvedIntro,details:resolvedDetails,buttonLabel,buttonUrl:resolvedButtonUrl,extraHtml:resolvedExtraHtml })
     await query(`UPDATE email_deliveries SET preview_html=$2,updated_at=NOW() WHERE id=$1`, [deliveryId,previewHtml])
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -125,7 +120,7 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
         'Idempotency-Key': eventKey,
       },
       body: JSON.stringify({
-        from: FROM, to: [recipient], subject:testingSubject,
+        from: FROM, to: [recipient], subject:resolvedSubject,
         html: previewHtml,
       }),
     })
