@@ -9,6 +9,9 @@ const APP_URL = String(
 const FROM = process.env.EMAIL_FROM || 'AS LABS - Trujillo <ventas@aslaboratorios.com>'
 const LOGO_URL = process.env.EMAIL_LOGO_URL || `${APP_URL}/assets/aslabs-logo-D8AX0wID.png`
 const BANNER_URL = process.env.EMAIL_BANNER_URL || `${APP_URL}/assets/aslabs-banner-CF1Vn5oW.webp`
+// Mientras el portal esté en pruebas, ningún correo transaccional puede salir a clientes reales.
+// Este valor es deliberadamente fijo para que una variable mal configurada no quite el bloqueo.
+const TEST_RECIPIENT = 'antonioavg041@gmail.com'
 
 const clean = (value = '') => String(value || '').trim()
 const escapeHtml = (value = '') => clean(value).replace(/[&<>"']/g, (character) => ({
@@ -40,7 +43,7 @@ function clientRecipient(context) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null
 }
 
-export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU SERVICIO', headline, intro, details = [], buttonLabel, buttonUrl }) {
+export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU SERVICIO', headline, intro, details = [], buttonLabel, buttonUrl, extraHtml = '', intendedRecipient = '' }) {
   const detailRows = details.filter((row) => row?.value).map((row) => `
     <tr>
       <td style="padding:13px 16px;color:#748078;width:155px;vertical-align:top;border-bottom:1px solid #e5ebe7;font-size:13px;text-transform:uppercase;letter-spacing:.5px">${escapeHtml(row.label)}</td>
@@ -53,7 +56,7 @@ export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU S
 <div style="display:none;max-height:0;overflow:hidden;color:transparent">${escapeHtml(headline)} · AS LABS - Trujillo</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#edf3ee;padding:30px 10px"><tr><td align="center">
   <table role="presentation" width="720" cellspacing="0" cellpadding="0" style="max-width:720px;width:100%;background:#fff;border:1px solid #d8e4dc;border-radius:24px;overflow:hidden;box-shadow:0 16px 40px rgba(16,63,40,.08)">
-    <tr><td style="padding:11px 24px;background:#fff4d9;border-bottom:1px solid #f2d79e;color:#83500f;font-size:12px;line-height:1.5;text-align:center"><strong>COMUNICACIONES EN FASE DE PRUEBAS</strong> · Si encuentras algún error, comunícate con <a href="mailto:luisg@aslaboratorios.com" style="color:#19583b;font-weight:700">luisg@aslaboratorios.com</a>.</td></tr>
+    <tr><td style="padding:11px 24px;background:#fff4d9;border-bottom:1px solid #f2d79e;color:#83500f;font-size:12px;line-height:1.5;text-align:center"><strong>MODO DE PRUEBAS</strong> · Entrega bloqueada al correo de prueba. Destinatario previsto: <strong>${escapeHtml(intendedRecipient || 'sin correo registrado')}</strong>.</td></tr>
     <tr><td style="padding:22px 36px 18px;background:#fff"><img src="${escapeHtml(LOGO_URL)}" width="270" alt="AS Labs · Desde 1997" style="display:block;width:270px;max-width:76%;height:auto;border:0"></td></tr>
     <tr><td><img src="${escapeHtml(BANNER_URL)}" width="720" alt="Laboratorio AS Labs" style="display:block;width:100%;height:230px;object-fit:cover;border:0"></td></tr>
     <tr><td style="padding:38px 44px 42px">
@@ -61,6 +64,7 @@ export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU S
       <h1 style="margin:18px 0 12px;font-size:31px;line-height:1.16;color:#123a27;letter-spacing:-.6px">${escapeHtml(headline)}</h1>
       <p style="margin:0 0 26px;font-size:16px;line-height:1.75;color:#52645a">Hola <strong style="color:#183c2a">${escapeHtml(context.client_name || 'cliente')}</strong>, ${escapeHtml(intro)}</p>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7faf8;border:1px solid #dce7df;border-radius:16px;overflow:hidden">${detailRows}</table>
+      ${extraHtml}
       ${button}
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:30px;border-top:1px solid #e2eae4"><tr><td style="padding-top:20px;font-size:12px;line-height:1.65;color:#7a8880">Este es un correo automático. Por favor, no respondas a este mensaje.<br>Para gestionar tu servicio, ingresa al portal de clientes de AS Labs.</td></tr></table>
     </td></tr>
@@ -87,7 +91,7 @@ async function deliveryRecord({ eventKey, eventType, context, recipient, subject
   return rows[0]?.id || null
 }
 
-async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline, intro, details, buttonLabel, buttonUrl, buttonUrlFactory }) {
+async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline, intro, details, buttonLabel, buttonUrl, buttonUrlFactory, extraHtml, extraHtmlFactory }) {
   try {
     const context = await contextForService(serviceId)
     if (!context) return { status: 'skipped', reason: 'service_not_found' }
@@ -95,12 +99,14 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
     const resolvedEyebrow = typeof eyebrow === 'function' ? eyebrow(context) : eyebrow
     const resolvedHeadline = typeof headline === 'function' ? headline(context) : headline
     const resolvedIntro = typeof intro === 'function' ? intro(context) : intro
-    const recipient = clientRecipient(context)
-    if (!recipient) {
+    const intendedRecipient = clientRecipient(context)
+    if (!intendedRecipient) {
       await deliveryRecord({ eventKey,eventType,context,recipient:null,subject:resolvedSubject,status:'skipped',error:'El cliente no tiene un correo válido registrado.' })
       return { status: 'skipped', reason: 'missing_recipient_email' }
     }
-    const deliveryId = await deliveryRecord({ eventKey,eventType,context,recipient,subject:resolvedSubject })
+    const recipient = TEST_RECIPIENT
+    const testingSubject = `[PRUEBA] ${resolvedSubject}`
+    const deliveryId = await deliveryRecord({ eventKey,eventType,context,recipient,subject:testingSubject })
     if (!deliveryId) return { status: 'duplicate' }
     if (!process.env.RESEND_API_KEY) {
       await query(`UPDATE email_deliveries SET error_message='RESEND_API_KEY pendiente de configuración',updated_at=NOW() WHERE id=$1`, [deliveryId])
@@ -108,7 +114,8 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
     }
     const resolvedDetails = typeof details === 'function' ? details(context) : details
     const resolvedButtonUrl = buttonUrlFactory ? await buttonUrlFactory(context) : buttonUrl
-    const previewHtml = renderEmailTemplate({ context,eyebrow:resolvedEyebrow,headline:resolvedHeadline,intro:resolvedIntro,details:resolvedDetails,buttonLabel,buttonUrl:resolvedButtonUrl })
+    const resolvedExtraHtml = extraHtmlFactory ? await extraHtmlFactory(context) : extraHtml
+    const previewHtml = renderEmailTemplate({ context,eyebrow:resolvedEyebrow,headline:resolvedHeadline,intro:resolvedIntro,details:resolvedDetails,buttonLabel,buttonUrl:resolvedButtonUrl,extraHtml:resolvedExtraHtml,intendedRecipient })
     await query(`UPDATE email_deliveries SET preview_html=$2,updated_at=NOW() WHERE id=$1`, [deliveryId,previewHtml])
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -118,7 +125,7 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
         'Idempotency-Key': eventKey,
       },
       body: JSON.stringify({
-        from: FROM, to: [recipient], subject:resolvedSubject,
+        from: FROM, to: [recipient], subject:testingSubject,
         html: previewHtml,
       }),
     })
@@ -137,6 +144,42 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
     ).catch(() => {})
     return { status: 'failed', error: error.message }
   }
+}
+
+export function sendPaymentRequestEmail(serviceId, paymentRequest) {
+  const currency = paymentRequest.currency === 'USD' ? 'US$' : 'S/'
+  const amount = Number(paymentRequest.amount || 0).toLocaleString('es-PE', { minimumFractionDigits:2,maximumFractionDigits:2 })
+  const yapeNumber = clean(process.env.PAYMENT_YAPE_NUMBER)
+  const yapeQrUrl = clean(process.env.PAYMENT_YAPE_QR_URL)
+  const bankName = clean(process.env.PAYMENT_BANK_NAME)
+  const bankAccount = clean(process.env.PAYMENT_BANK_ACCOUNT)
+  const bankCci = clean(process.env.PAYMENT_BANK_CCI)
+  const instructionRows = [
+    yapeNumber ? `<div style="padding:10px 0"><strong style="color:#173c29">Yape</strong><br><span style="color:#52645a">${escapeHtml(yapeNumber)}</span></div>` : '',
+    bankName ? `<div style="padding:10px 0"><strong style="color:#173c29">${escapeHtml(bankName)}</strong><br><span style="color:#52645a">Cuenta: ${escapeHtml(bankAccount || 'Pendiente')}<br>CCI: ${escapeHtml(bankCci || 'Pendiente')}</span></div>` : '',
+  ].filter(Boolean).join('')
+  const extraHtml = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px;background:#f1f8f3;border:1px solid #cfe3d5;border-radius:16px"><tr>
+    ${yapeQrUrl ? `<td style="padding:18px;width:130px;vertical-align:top"><img src="${escapeHtml(yapeQrUrl)}" width="118" height="118" alt="QR de Yape" style="display:block;width:118px;height:118px;object-fit:contain;background:#fff;border-radius:12px"></td>` : ''}
+    <td style="padding:18px;vertical-align:top"><strong style="display:block;color:#123a27;font-size:16px">Medios de pago</strong>${instructionRows || '<span style="display:block;margin-top:10px;color:#52645a">Los datos de pago serán confirmados por un administrador.</span>'}</td>
+  </tr></table>`
+  return send({
+    serviceId,
+    eventType:'payment_requested',
+    eventKey:`payment_requested:${paymentRequest.id}`,
+    subject:(context) => `Solicitud de pago ${paymentRequest.code} · ${context.code}`,
+    eyebrow:'PAGO SOLICITADO',
+    headline:'Tu solicitud de pago está disponible',
+    intro:'registramos el importe del servicio. Puedes revisar los medios de pago y subir uno o varios comprobantes desde el portal.',
+    details:(context) => [
+      { label:'Orden',value:context.code },
+      { label:'Concepto',value:paymentRequest.concept },
+      { label:'Importe',value:`${currency} ${amount}` },
+      { label:'Comprobante',value:paymentRequest.documentType === 'factura' ? 'Factura' : 'Boleta' },
+    ],
+    extraHtml,
+    buttonLabel:'Ver pago y subir comprobante',
+    buttonUrl:APP_URL,
+  })
 }
 
 export async function publicDocumentUrl(documentType, serviceId, recordId) {

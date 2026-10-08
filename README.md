@@ -29,6 +29,26 @@ npm run build    # build de producción en /dist
 
 Requiere Node 18+. El mapa usa mosaicos satelitales de Esri (conexión a internet).
 
+## Configuración de pagos
+
+El módulo **Pagos** crea solicitudes ligadas a órdenes, admite varios comprobantes
+por solicitud y permite que un administrador los apruebe u observe. Los datos que
+se muestran al cliente y en el correo se configuran en Vercel con:
+
+- `PAYMENT_YAPE_NUMBER`
+- `PAYMENT_YAPE_QR_URL`
+- `PAYMENT_BANK_NAME`
+- `PAYMENT_BANK_ACCOUNT`
+- `PAYMENT_BANK_CCI`
+
+Durante la fase actual todos los correos transaccionales están bloqueados en código
+y se entregan únicamente a `antonioavg041@gmail.com`.
+
+La interfaz de facturación electrónica queda preparada para `API SUNAT`. Antes de
+habilitar una emisión real deben configurarse y validarse las credenciales del
+ambiente de desarrollo del proveedor (`APISUNAT_API_URL` y
+`APISUNAT_API_TOKEN`) y completar los datos fiscales del cliente.
+
 ## Estructura
 
 ```

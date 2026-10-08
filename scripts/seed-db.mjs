@@ -45,6 +45,7 @@ for (const statement of schema.split(';').map((value) => value.trim()).filter(Bo
 const modules = [
   ['dashboard', 'Resumen', 'Indicadores y actividad general', 10],
   ['orders', 'Órdenes', 'Servicios y solicitudes de análisis', 20],
+  ['payments', 'Pagos', 'Solicitudes y comprobantes de pago de clientes', 25],
   ['tracking', 'Muestreo en campo', 'Ubicación y actividad de cuadrillas', 30],
   ['dna', 'Extracción de DNA', 'Trazabilidad del proceso de DNA', 40],
   ['zones', 'Zonas de campo', 'Cartografía y lotes', 50],
@@ -96,6 +97,7 @@ for (const module of modules) {
 const clientMatrix = {
   dashboard: [true, false, false, false],
   orders: [true, true, false, false],
+  payments: [true, true, true, false],
   tracking: [true, false, false, false],
   dna: [true, true, false, false],
   zones: [true, true, true, false],

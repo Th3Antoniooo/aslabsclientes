@@ -1,6 +1,6 @@
 import {
   IcoChart, IcoDashboard, IcoDna, IcoLocation, IcoLogout,
-  IcoBox, IcoChat, IcoFlask, IcoLeaf, IcoMap, IcoOrders, IcoSend, IcoShield, IcoUser, IcoUsers,
+  IcoBox, IcoChat, IcoCreditCard, IcoFlask, IcoLeaf, IcoMap, IcoOrders, IcoSend, IcoShield, IcoUser, IcoUsers,
 } from './Icons.jsx'
 import logo from '../assets/aslabs-logo.png'
 
@@ -8,6 +8,7 @@ const NAV = [
   { id: 'dashboard', module: 'dashboard', label: 'Centro de trabajo', Ico: IcoDashboard },
   { id: 'asistencia', label: 'Asistencia', Ico: IcoChat, support: true },
   { id: 'ordenes', module: 'orders', label: 'Órdenes', Ico: IcoOrders },
+  { id: 'pagos', module: 'payments', label: 'Pagos', Ico: IcoCreditCard },
   { id: 'tracking', module: 'tracking', label: 'Muestreo en campo', Ico: IcoLocation },
   { id: 'operaciones', module: 'lab_operations', label: 'Operaciones de laboratorio', Ico: IcoFlask },
   { id: 'biotecnologia', module: 'biotechnology', label: 'Biotecnología', Ico: IcoLeaf },
@@ -36,7 +37,7 @@ export default function Sidebar({ view, setView, user, onLogout, quickWorkerExit
         {NAV.filter((item) => (
           (!user.activeWorker?.codeCreatorOnly || ['dashboard', 'biotecnologia', 'operaciones', 'cuenta'].includes(item.id))
           &&
-          (!item.module || user.role === 'admin' || (item.id === 'dashboard' && user.activeWorker) || user.permissions?.[item.module]?.view)
+          (!item.module || user.role === 'admin' || (item.id === 'dashboard' && user.activeWorker) || (item.id === 'pagos' && user.role === 'client') || user.permissions?.[item.module]?.view)
           && (item.id !== 'asistencia' || ['admin', 'client'].includes(user.role))
           && (item.id !== 'biotecnologia' || user.role === 'admin' || user.activeWorker?.biotechnologyAccess || user.activeWorker?.canCreateBiotechnologyCodes)
           && (item.id !== 'operaciones' || !user.activeWorker || user.activeWorker?.canUseEquipment)

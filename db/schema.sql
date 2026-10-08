@@ -1074,3 +1074,49 @@ CREATE TABLE IF NOT EXISTS support_messages (
 );
 CREATE INDEX IF NOT EXISTS support_messages_ticket_time_idx
   ON support_messages(ticket_id, created_at);
+
+CREATE TABLE IF NOT EXISTS client_payment_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL UNIQUE,
+  service_id uuid NOT NULL REFERENCES service_requests(id) ON DELETE RESTRICT,
+  client_user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  amount numeric(14,2) NOT NULL CHECK (amount > 0),
+  currency text NOT NULL DEFAULT 'PEN' CHECK (currency IN ('PEN','USD')),
+  concept text NOT NULL,
+  document_type text NOT NULL DEFAULT 'boleta' CHECK (document_type IN ('boleta','factura')),
+  due_date date,
+  notes text,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','receipt_submitted','approved','rejected','cancelled')),
+  review_notes text,
+  created_by_user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  reviewed_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at timestamptz,
+  fiscal_status text NOT NULL DEFAULT 'not_issued'
+    CHECK (fiscal_status IN ('not_issued','pending','issued','failed')),
+  fiscal_document_id text,
+  fiscal_document_url text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS client_payment_requests_client_time_idx
+  ON client_payment_requests(client_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS client_payment_requests_status_time_idx
+  ON client_payment_requests(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS client_payment_receipts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  payment_request_id uuid NOT NULL REFERENCES client_payment_requests(id) ON DELETE CASCADE,
+  file_name text NOT NULL,
+  mime_type text NOT NULL,
+  file_size integer NOT NULL CHECK (file_size > 0),
+  data_url text NOT NULL,
+  payment_reference text,
+  payment_date date,
+  notes text,
+  uploaded_by_user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  uploaded_by_role text NOT NULL CHECK (uploaded_by_role IN ('admin','client')),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS client_payment_receipts_request_time_idx
+  ON client_payment_receipts(payment_request_id, created_at DESC);

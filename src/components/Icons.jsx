@@ -18,6 +18,11 @@ export const IcoBox = (p) => (
     <path d="m3 7 9 5 9-5M12 12v10" /><path d="m5 4 7-3 7 3 2 3v10l-9 5-9-5V7l2-3Z" />
   </svg>
 )
+export const IcoCreditCard = (p) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" {...base} {...p}>
+    <rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 10h19M7 15h3" />
+  </svg>
+)
 export const IcoMap = (p) => (
   <svg width="18" height="18" viewBox="0 0 24 24" {...base} {...p}>
     <path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2Z" /><path d="M9 3v16M15 5v16" />

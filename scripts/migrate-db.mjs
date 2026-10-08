@@ -543,4 +543,23 @@ await sql.query(
    WHERE service_category_id IS NULL OR service_category_name IS NULL`,
 )
 
+await sql.query(
+  `INSERT INTO modules (id,name,description,sort_order)
+   VALUES ('payments','Pagos','Solicitudes y comprobantes de pago de clientes',25)
+   ON CONFLICT (id) DO UPDATE SET
+     name=EXCLUDED.name,description=EXCLUDED.description,sort_order=EXCLUDED.sort_order`,
+)
+await sql.query(
+  `INSERT INTO role_permissions (role_id,module_id,can_view,can_create,can_edit,can_delete)
+   SELECT id,'payments',true,true,true,true FROM roles WHERE slug='admin'
+   ON CONFLICT (role_id,module_id) DO UPDATE SET
+     can_view=true,can_create=true,can_edit=true,can_delete=true`,
+)
+await sql.query(
+  `INSERT INTO role_permissions (role_id,module_id,can_view,can_create,can_edit,can_delete)
+   SELECT id,'payments',true,true,true,false FROM roles WHERE slug='client'
+   ON CONFLICT (role_id,module_id) DO UPDATE SET
+     can_view=true,can_create=true,can_edit=true,can_delete=false`,
+)
+
 console.log('Esquema actualizado sin borrar datos operativos.')
