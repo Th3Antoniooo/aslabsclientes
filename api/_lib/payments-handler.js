@@ -13,19 +13,26 @@ const text = (value, max = 500) => String(value || '').trim().slice(0, max)
 const isAdmin = (user) => user?.role === 'admin'
 
 function paymentConfiguration() {
+  const fiscalToken = process.env.APISUNAT_PERSONA_TOKEN || process.env.APISUNAT_API_TOKEN
+  const credentialsReady = Boolean(process.env.APISUNAT_API_URL && process.env.APISUNAT_PERSONA_ID && fiscalToken)
+  const seriesReady = Boolean(process.env.APISUNAT_INVOICE_SERIES && process.env.APISUNAT_RECEIPT_SERIES)
   return {
     yape: {
+      name: text(process.env.PAYMENT_YAPE_NAME, 120),
       number: text(process.env.PAYMENT_YAPE_NUMBER, 40),
       qrUrl: text(process.env.PAYMENT_YAPE_QR_URL, 1200),
     },
     bank: {
       name: text(process.env.PAYMENT_BANK_NAME, 120),
+      holder: text(process.env.PAYMENT_ACCOUNT_HOLDER, 180),
       account: text(process.env.PAYMENT_BANK_ACCOUNT, 120),
       cci: text(process.env.PAYMENT_BANK_CCI, 120),
     },
     email: { testMode:true, recipient:TEST_RECIPIENT },
     fiscal: {
-      enabled:Boolean(process.env.APISUNAT_API_URL && process.env.APISUNAT_API_TOKEN),
+      enabled:credentialsReady && seriesReady,
+      credentialsReady,
+      seriesReady,
       provider:'API SUNAT',
     },
   }

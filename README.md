@@ -36,8 +36,10 @@ por solicitud y permite que un administrador los apruebe u observe. Los datos qu
 se muestran al cliente y en el correo se configuran en Vercel con:
 
 - `PAYMENT_YAPE_NUMBER`
+- `PAYMENT_YAPE_NAME`
 - `PAYMENT_YAPE_QR_URL`
 - `PAYMENT_BANK_NAME`
+- `PAYMENT_ACCOUNT_HOLDER`
 - `PAYMENT_BANK_ACCOUNT`
 - `PAYMENT_BANK_CCI`
 
@@ -45,9 +47,10 @@ Durante la fase actual todos los correos transaccionales están bloqueados en c�
 y se entregan únicamente a `antonioavg041@gmail.com`.
 
 La interfaz de facturación electrónica queda preparada para `API SUNAT`. Antes de
-habilitar una emisión real deben configurarse y validarse las credenciales del
-ambiente de desarrollo del proveedor (`APISUNAT_API_URL` y
-`APISUNAT_API_TOKEN`) y completar los datos fiscales del cliente.
+habilitar una emisión real deben configurarse y validarse `APISUNAT_API_URL`,
+`APISUNAT_PERSONA_ID`, `APISUNAT_PERSONA_TOKEN`, `APISUNAT_INVOICE_SERIES` y
+`APISUNAT_RECEIPT_SERIES`, además de completar los datos fiscales del cliente.
+El botón permanece bloqueado mientras falte cualquiera de estos valores.
 
 ## Estructura
 

@@ -52,6 +52,13 @@ export default function Payments({ user, notify }) {
   const [upload,setUpload] = useState(emptyUpload)
   const [reviewNotes,setReviewNotes] = useState('')
 
+  useEffect(() => {
+    if (!requestOpen) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [requestOpen])
+
   const load = async (preferred = '') => {
     setLoading(true)
     try {
@@ -199,16 +206,19 @@ export default function Payments({ user, notify }) {
               </section>
 
               {!['approved','cancelled'].includes(selected.status) && <form className="payment-upload" onSubmit={uploadReceipts}>
-                <header><div><span className="eyebrow">{admin ? 'Carga administrativa' : 'Confirmar pago'}</span><h3>{admin ? 'Subir comprobantes manualmente' : 'Sube tus comprobantes'}</h3><p>Selecciona uno o varios archivos. PDF, JPG, PNG o WEBP; máximo 3 MB por archivo.</p></div><IcoSend /></header>
+                <header><div><span className="eyebrow">{admin ? 'Carga administrativa' : 'Confirmar pago'}</span><h3>{admin ? 'Subir comprobantes' : 'Adjunta tu pago'}</h3><p>PDF o imagen, hasta 3 MB por archivo.</p></div><IcoSend /></header>
                 <label className={`payment-dropzone ${files.length ? 'ready' : ''}`}>
                   <input ref={fileInput} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFiles(Array.from(event.target.files || []).slice(0,8))} />
-                  <IcoPlus /><span><strong>{files.length ? `${files.length} archivo${files.length === 1 ? '' : 's'} seleccionado${files.length === 1 ? '' : 's'}` : 'Seleccionar comprobantes'}</strong><small>{files.length ? files.map((file) => file.name).join(' · ') : 'Puedes elegir hasta 8 archivos'}</small></span>
+                  <IcoPlus /><span><strong>{files.length ? `${files.length} archivo${files.length === 1 ? '' : 's'} listo${files.length === 1 ? '' : 's'}` : 'Elegir comprobantes'}</strong><small>{files.length ? files.map((file) => file.name).join(' · ') : 'Puedes seleccionar varios a la vez'}</small></span>
                 </label>
-                <div className="payment-upload-fields">
-                  <label><span>Número de operación <small>Opcional</small></span><input value={upload.reference} onChange={(event) => setUpload({ ...upload,reference:event.target.value })} placeholder="Ej. 092174" /></label>
-                  <label><span>Fecha del pago</span><input type="date" value={upload.paymentDate} onChange={(event) => setUpload({ ...upload,paymentDate:event.target.value })} /></label>
-                  <label className="wide"><span>Nota <small>Opcional</small></span><input value={upload.notes} onChange={(event) => setUpload({ ...upload,notes:event.target.value })} placeholder="Dato adicional para identificar el pago" /></label>
-                </div>
+                <details className="payment-optional-details">
+                  <summary>Agregar datos opcionales</summary>
+                  <div className="payment-upload-fields">
+                    <label><span>Número de operación</span><input value={upload.reference} onChange={(event) => setUpload({ ...upload,reference:event.target.value })} placeholder="Ej. 092174" /></label>
+                    <label><span>Fecha del pago</span><input type="date" value={upload.paymentDate} onChange={(event) => setUpload({ ...upload,paymentDate:event.target.value })} /></label>
+                    <label className="wide"><span>Nota</span><input value={upload.notes} onChange={(event) => setUpload({ ...upload,notes:event.target.value })} placeholder="Dato adicional para identificar el pago" /></label>
+                  </div>
+                </details>
                 <button type="submit" className="payments-primary" disabled={busy || !files.length}>{busy ? 'Subiendo…' : <><IcoSend /> Enviar comprobantes</>}</button>
               </form>}
 
@@ -223,8 +233,8 @@ export default function Payments({ user, notify }) {
               <section className="payment-methods">
                 <span className="eyebrow">Datos de pago</span><h3>Elige tu método</h3>
                 {config.yape?.qrUrl && <img className="payment-qr" src={config.yape.qrUrl} alt="Código QR de Yape AS Labs" />}
-                {config.yape?.number && <div className="payment-method-row"><span>Yape</span><strong>{config.yape.number}</strong></div>}
-                {(config.bank?.account || config.bank?.cci) && <div className="payment-bank"><strong>{config.bank.name || 'Cuenta bancaria'}</strong>{config.bank.account && <span>Cuenta: {config.bank.account}</span>}{config.bank.cci && <span>CCI: {config.bank.cci}</span>}</div>}
+                {config.yape?.number && <div className="payment-method-row"><span>Yape{config.yape.name ? ` · ${config.yape.name}` : ''}</span><strong>{config.yape.number}</strong></div>}
+                {(config.bank?.account || config.bank?.cci) && <div className="payment-bank"><strong>{config.bank.name || 'Cuenta bancaria'}</strong>{config.bank.holder && <span>{config.bank.holder}</span>}{config.bank.account && <span>Cuenta corriente: {config.bank.account}</span>}{config.bank.cci && <span>CCI: {config.bank.cci}</span>}</div>}
                 {!hasPaymentData && <div className="payment-config-pending"><IcoShield /><span><strong>Datos pendientes de configuración</strong><small>AS Labs confirmará el medio de pago antes de la operación.</small></span></div>}
               </section>
 
@@ -232,9 +242,9 @@ export default function Payments({ user, notify }) {
                 <span className="eyebrow">Facturación electrónica</span><h3>{selected.document_type === 'factura' ? 'Factura' : 'Boleta'} SUNAT</h3>
                 <p>{selected.fiscal_status === 'issued' ? 'El documento electrónico ya fue emitido.' : 'La emisión solo se habilita después de aprobar el pago.'}</p>
                 <button type="button" onClick={issueFiscal} disabled={busy || selected.status !== 'approved' || !config.fiscal?.enabled}>
-                  <IcoFile /> {config.fiscal?.enabled ? 'Emitir comprobante' : 'Conectar API SUNAT'}
+                  <IcoFile /> {config.fiscal?.enabled ? 'Emitir comprobante' : 'Configuración pendiente'}
                 </button>
-                {!config.fiscal?.enabled && <small>Faltan credenciales y la validación del proveedor antes de emitir.</small>}
+                {!config.fiscal?.enabled && <small>{config.fiscal?.credentialsReady ? 'Credenciales guardadas. Falta definir las series de factura y boleta.' : 'Falta completar la configuración fiscal antes de emitir.'}</small>}
               </section>}
 
               <section className="payment-timeline">
@@ -252,18 +262,25 @@ export default function Payments({ user, notify }) {
 
     {requestOpen && <div className="modal-overlay payment-modal-overlay" onMouseDown={() => setRequestOpen(false)}>
       <form className="payment-request-modal" onSubmit={createRequest} onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><span className="eyebrow">Nueva cobranza</span><h2>Solicitar pago</h2><p>Completa lo esencial. El cliente recibirá las instrucciones y podrá subir varios comprobantes.</p></div><button type="button" className="modal-close" onClick={() => setRequestOpen(false)}>×</button></header>
-        <div className="payment-request-grid">
-          <label className="wide"><span>Orden y cliente</span><select value={requestForm.serviceId} onChange={(event) => setRequestForm({ ...requestForm,serviceId:event.target.value })} required><option value="">Seleccionar orden…</option>{data.services.map((service) => <option value={service.id} key={service.id}>{service.code} · {service.client_name} · {service.name}</option>)}</select></label>
-          <label className="wide"><span>Concepto</span><input value={requestForm.concept} onChange={(event) => setRequestForm({ ...requestForm,concept:event.target.value })} placeholder="Ej. Análisis microbiológico de 12 muestras" required maxLength="500" /></label>
-          <label><span>Importe</span><input type="number" min="0.01" step="0.01" value={requestForm.amount} onChange={(event) => setRequestForm({ ...requestForm,amount:event.target.value })} placeholder="0.00" required /></label>
-          <label><span>Moneda</span><select value={requestForm.currency} onChange={(event) => setRequestForm({ ...requestForm,currency:event.target.value })}><option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option></select></label>
-          <label><span>Comprobante</span><select value={requestForm.documentType} onChange={(event) => setRequestForm({ ...requestForm,documentType:event.target.value })}><option value="boleta">Boleta</option><option value="factura">Factura</option></select></label>
-          <label><span>Fecha límite <small>Opcional</small></span><input type="date" value={requestForm.dueDate} onChange={(event) => setRequestForm({ ...requestForm,dueDate:event.target.value })} /></label>
-          <label className="wide"><span>Nota para el cliente <small>Opcional</small></span><textarea rows="3" value={requestForm.notes} onChange={(event) => setRequestForm({ ...requestForm,notes:event.target.value })} placeholder="Indicaciones adicionales" /></label>
+        <header><div><span className="eyebrow">Nueva cobranza</span><h2>Solicitar pago</h2><p>Solo necesitas elegir la orden, indicar el concepto y el importe.</p></div><button type="button" className="modal-close" onClick={() => setRequestOpen(false)}>×</button></header>
+        <div className="payment-request-scroll">
+          <div className="payment-request-grid">
+            <label className="wide"><span>Orden y cliente</span><select value={requestForm.serviceId} onChange={(event) => setRequestForm({ ...requestForm,serviceId:event.target.value })} required><option value="">Seleccionar orden…</option>{data.services.map((service) => <option value={service.id} key={service.id}>{service.code} · {service.client_name} · {service.name}</option>)}</select></label>
+            <label className="wide"><span>Concepto</span><input value={requestForm.concept} onChange={(event) => setRequestForm({ ...requestForm,concept:event.target.value })} placeholder="Ej. Análisis microbiológico de 12 muestras" required maxLength="500" /></label>
+            <label><span>Importe</span><input type="number" min="0.01" step="0.01" value={requestForm.amount} onChange={(event) => setRequestForm({ ...requestForm,amount:event.target.value })} placeholder="0.00" required /></label>
+            <label><span>Moneda</span><select value={requestForm.currency} onChange={(event) => setRequestForm({ ...requestForm,currency:event.target.value })}><option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option></select></label>
+            <label className="wide"><span>Comprobante</span><select value={requestForm.documentType} onChange={(event) => setRequestForm({ ...requestForm,documentType:event.target.value })}><option value="boleta">Boleta</option><option value="factura">Factura</option></select></label>
+          </div>
+          <details className="payment-request-optional">
+            <summary>Opciones adicionales</summary>
+            <div className="payment-request-grid">
+              <label><span>Fecha límite</span><input type="date" value={requestForm.dueDate} onChange={(event) => setRequestForm({ ...requestForm,dueDate:event.target.value })} /></label>
+              <label className="wide"><span>Nota para el cliente</span><textarea rows="3" value={requestForm.notes} onChange={(event) => setRequestForm({ ...requestForm,notes:event.target.value })} placeholder="Indicaciones adicionales" /></label>
+            </div>
+          </details>
+          <div className="payment-modal-test"><IcoShield /><span><strong>Modo de pruebas</strong><small>Los correos solo se envían a {config.email?.recipient || 'la cuenta autorizada'}.</small></span></div>
         </div>
-        <div className="payment-modal-test"><IcoShield /><span><strong>Envío seguro en modo pruebas</strong><small>El correo se enviará únicamente a {config.email?.recipient || 'la cuenta de prueba'}.</small></span></div>
-        <footer><button type="button" className="btn btn-ghost" onClick={() => setRequestOpen(false)}>Cancelar</button><button type="submit" className="payments-primary" disabled={busy}>{busy ? 'Creando…' : <><IcoSend /> Crear y preparar correo</>}</button></footer>
+        <footer><button type="button" className="btn btn-ghost" onClick={() => setRequestOpen(false)}>Cancelar</button><button type="submit" className="payments-primary" disabled={busy}>{busy ? 'Creando…' : <><IcoSend /> Crear solicitud</>}</button></footer>
       </form>
     </div>}
   </div>

@@ -149,14 +149,16 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
 export function sendPaymentRequestEmail(serviceId, paymentRequest) {
   const currency = paymentRequest.currency === 'USD' ? 'US$' : 'S/'
   const amount = Number(paymentRequest.amount || 0).toLocaleString('es-PE', { minimumFractionDigits:2,maximumFractionDigits:2 })
+  const yapeName = clean(process.env.PAYMENT_YAPE_NAME)
   const yapeNumber = clean(process.env.PAYMENT_YAPE_NUMBER)
   const yapeQrUrl = clean(process.env.PAYMENT_YAPE_QR_URL)
   const bankName = clean(process.env.PAYMENT_BANK_NAME)
+  const bankHolder = clean(process.env.PAYMENT_ACCOUNT_HOLDER)
   const bankAccount = clean(process.env.PAYMENT_BANK_ACCOUNT)
   const bankCci = clean(process.env.PAYMENT_BANK_CCI)
   const instructionRows = [
-    yapeNumber ? `<div style="padding:10px 0"><strong style="color:#173c29">Yape</strong><br><span style="color:#52645a">${escapeHtml(yapeNumber)}</span></div>` : '',
-    bankName ? `<div style="padding:10px 0"><strong style="color:#173c29">${escapeHtml(bankName)}</strong><br><span style="color:#52645a">Cuenta: ${escapeHtml(bankAccount || 'Pendiente')}<br>CCI: ${escapeHtml(bankCci || 'Pendiente')}</span></div>` : '',
+    yapeNumber ? `<div style="padding:10px 0"><strong style="color:#173c29">Yape${yapeName ? ` · ${escapeHtml(yapeName)}` : ''}</strong><br><span style="color:#52645a">${escapeHtml(yapeNumber)}</span></div>` : '',
+    bankName ? `<div style="padding:10px 0"><strong style="color:#173c29">${escapeHtml(bankName)}</strong><br><span style="color:#52645a">${bankHolder ? `${escapeHtml(bankHolder)}<br>` : ''}Cuenta corriente: ${escapeHtml(bankAccount || 'Pendiente')}<br>CCI: ${escapeHtml(bankCci || 'Pendiente')}</span></div>` : '',
   ].filter(Boolean).join('')
   const extraHtml = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px;background:#f1f8f3;border:1px solid #cfe3d5;border-radius:16px"><tr>
     ${yapeQrUrl ? `<td style="padding:18px;width:130px;vertical-align:top"><img src="${escapeHtml(yapeQrUrl)}" width="118" height="118" alt="QR de Yape" style="display:block;width:118px;height:118px;object-fit:contain;background:#fff;border-radius:12px"></td>` : ''}
