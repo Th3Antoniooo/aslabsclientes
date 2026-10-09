@@ -214,7 +214,7 @@ export function sendPaymentRequestEmail(serviceId, paymentRequest) {
   return send({
     serviceId,
     eventType:'payment_requested',
-    eventKey:`payment_requested:${paymentRequest.id}`,
+    eventKey:`payment_requested:${paymentRequest.id}:${crypto.randomUUID()}`,
     subject:(context) => `Solicitud de pago ${paymentRequest.code} · ${context.code}`,
     eyebrow:'PAGO SOLICITADO',
     headline:'Tu solicitud de pago está disponible',

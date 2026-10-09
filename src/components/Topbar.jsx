@@ -5,6 +5,7 @@ const TITLES = {
   dashboard: ['Vista general', 'Centro de trabajo'],
   ordenes: ['Servicios', 'Órdenes de análisis'],
   pagos: ['Cobranza', 'Pagos y comprobantes'],
+  legales: ['Archivo seguro', 'Documentos legales'],
   tracking: ['Operaciones de campo', 'Muestreo en tiempo real'],
   operaciones: ['Control interno', 'Operaciones de laboratorio'],
   biotecnologia: ['Producción in vitro', 'Biotecnología vegetal'],

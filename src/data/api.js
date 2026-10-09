@@ -46,6 +46,27 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify({ action:'issue_fiscal_document',paymentId }),
   }),
+  sendPaymentEmail: (paymentId) => request('/api/services?payments=1', {
+    method: 'PATCH',
+    body: JSON.stringify({ action:'send_email',paymentId }),
+  }),
+  legalDocuments: () => request('/api/services?legalDocuments=1'),
+  beginLegalDocumentUpload: (payload) => request('/api/services?legalDocuments=1', {
+    method: 'POST',
+    body: JSON.stringify({ action:'begin_upload',...payload }),
+  }),
+  uploadLegalDocumentChunk: (payload) => request('/api/services?legalDocuments=1', {
+    method: 'PATCH',
+    body: JSON.stringify({ action:'upload_chunk',...payload }),
+  }),
+  completeLegalDocumentUpload: (uploadId) => request('/api/services?legalDocuments=1', {
+    method: 'PATCH',
+    body: JSON.stringify({ action:'complete_upload',uploadId }),
+  }),
+  deleteLegalDocument: (documentId) => request('/api/services?legalDocuments=1', {
+    method: 'DELETE',
+    body: JSON.stringify({ documentId }),
+  }),
   readNotification: (id) => request('/api/notifications', {
     method: 'PATCH',
     body: JSON.stringify({ id }),

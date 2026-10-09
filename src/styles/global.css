@@ -4529,6 +4529,67 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .biotech-cultivation-alert-list article { grid-template-columns:48px 1fr 1fr; }
   .biotech-alert-status { grid-column:2/-1; }
 }
+
+/* Pagos simplificados: paneles independientes con desplazamiento estable */
+.payments-page { min-height:0; gap:12px; }
+.payments-hero { min-height:142px; padding:24px 28px; border-radius:21px; }
+.payments-hero h1 { margin:6px 0 8px; font-size:clamp(28px,2.6vw,40px); }
+.payments-hero p { font-size:11px; }
+.payments-hero-actions { min-width:210px; gap:9px; }
+.payments-security { padding:9px 11px; }
+.payments-metrics { gap:8px; }
+.payments-metrics article { min-height:65px; padding:11px 14px; border-radius:14px; box-shadow:none; }
+.metric-icon { width:38px; height:38px; border-radius:11px; }
+.metric-icon svg { width:18px; }
+.payments-metrics strong { font-size:18px; }
+.payments-workspace { height:calc(100dvh - 190px); min-height:600px; max-height:900px; border-radius:19px; }
+.payments-list-panel,.payment-detail { min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.payment-detail { scrollbar-gutter:stable; }
+.payment-detail-head { position:sticky; top:0; z-index:4; padding:17px 20px 14px; background:rgba(255,255,255,.96); backdrop-filter:blur(14px); }
+.payment-detail-head h2 { font-size:20px; }
+.payment-detail-grid { padding:14px 17px 21px; gap:12px; }
+.payment-main-column,.payment-side-column { gap:10px; }
+.payment-receipts,.payment-upload,.payment-review-box,.payment-methods,.payment-fiscal-card,.payment-timeline { padding:14px; border-radius:14px; box-shadow:none; }
+.payment-email-button { min-height:34px; margin-top:5px; padding:0 11px; display:inline-flex; align-items:center; gap:6px; border:1px solid #bcd2c4; border-radius:10px; color:#225d42; background:#f5faf7; font:inherit; font-size:8px; font-weight:850; cursor:pointer; }
+.payment-email-button:hover:not(:disabled) { border-color:#4a8c68; background:#eaf5ed; }
+.payment-email-button:disabled { opacity:.5; cursor:not-allowed; }
+.payment-email-date { color:#829087!important; font-size:7px!important; text-transform:none!important; letter-spacing:0!important; }
+
+/* Archivo legal compartido */
+.legal-page { display:grid; gap:13px; min-height:0; }
+.legal-head { min-height:122px; padding:24px 27px; display:flex; align-items:center; justify-content:space-between; gap:24px; border:1px solid #d6e4da; border-radius:21px; background:linear-gradient(135deg,#f7fbf8,#fff); }
+.legal-head > div { display:flex; align-items:center; gap:15px; }
+.legal-head > div > span { width:50px; height:50px; display:grid; place-items:center; border-radius:15px; color:#fff; background:#1e6848; }
+.legal-head > div > span svg { width:23px; height:23px; }
+.legal-head h1 { margin:0 0 5px; color:#163a2a; font-size:clamp(25px,2.5vw,36px); letter-spacing:-.035em; }
+.legal-head p { margin:0; color:#6d7d74; font-size:11px; }
+.legal-head > button,.legal-modal footer button:last-child { min-height:44px; padding:0 16px; display:inline-flex; align-items:center; justify-content:center; gap:7px; border:0; border-radius:12px; color:#fff; background:#246f4e; font:inherit; font-size:10px; font-weight:850; cursor:pointer; }
+.legal-toolbar { padding:10px; display:flex; align-items:center; gap:10px; border:1px solid #dbe6df; border-radius:16px; background:#fff; }
+.legal-toolbar > label { min-width:220px; flex:1; height:40px; padding:0 11px; display:flex; align-items:center; gap:8px; border:1px solid #d8e4dc; border-radius:11px; background:#f9fbfa; }
+.legal-toolbar > label svg { width:16px; color:#718178; }.legal-toolbar input { width:100%; border:0; outline:0; background:transparent; color:#173a2a; font:inherit; font-size:10px; }
+.legal-toolbar > div { display:flex; gap:5px; overflow-x:auto; }
+.legal-toolbar > div button { padding:7px 9px; white-space:nowrap; border:1px solid #d8e2db; border-radius:9px; color:#68776f; background:#fff; font:inherit; font-size:8px; font-weight:750; cursor:pointer; }
+.legal-toolbar > div button.active { border-color:#246f4e; color:#fff; background:#246f4e; }
+.legal-toolbar > span { white-space:nowrap; color:#7a8880; font-size:8px; }
+.legal-list { overflow:hidden; border:1px solid #dbe6df; border-radius:18px; background:#fff; }
+.legal-document { min-height:84px; padding:13px 16px; display:grid; grid-template-columns:48px minmax(0,1fr) auto; align-items:center; gap:13px; border-bottom:1px solid #e3ebe6; }
+.legal-document:last-child { border-bottom:0; }
+.legal-file-icon { width:48px; height:54px; display:grid; place-items:center; align-content:center; gap:2px; border-radius:12px; color:#24694a; background:#e9f4ed; }
+.legal-file-icon svg { width:20px; }.legal-file-icon small { font-size:6px; font-weight:900; }
+.legal-document-copy { min-width:0; display:grid; gap:3px; }.legal-document-copy > span { color:#9b641c; font-size:7px; font-weight:850; }.legal-document-copy strong { overflow:hidden; color:#1b3d2e; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }.legal-document-copy small { color:#7c8a82; font-size:8px; }.legal-document-copy p { margin:2px 0 0; color:#66776e; font-size:8px; line-height:1.45; }
+.legal-document-actions { display:flex; align-items:center; gap:6px; }.legal-document-actions a,.legal-document-actions button { min-height:34px; padding:0 11px; display:inline-flex; align-items:center; border:1px solid #d2e0d6; border-radius:9px; color:#245e43; background:#fff; text-decoration:none; font:inherit; font-size:8px; font-weight:850; cursor:pointer; }.legal-document-actions button { color:#9a443a; border-color:#ecd0ca; }
+.legal-empty { min-height:280px; padding:35px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#819088; text-align:center; }.legal-empty svg { width:36px; height:36px; }.legal-empty strong { color:#385446; font-size:15px; }.legal-empty p { margin:0; font-size:9px; }
+.legal-modal-overlay { z-index:1350; padding:16px; overflow-y:auto; place-items:center; }
+.legal-modal { width:min(630px,100%); max-height:calc(100dvh - 32px); overflow:hidden; display:grid; grid-template-rows:auto minmax(0,1fr) auto; border-radius:21px; background:#fff; box-shadow:0 30px 80px rgba(9,38,25,.3); }
+.legal-modal > header { padding:19px 22px 15px; display:flex; align-items:flex-start; justify-content:space-between; gap:14px; border-bottom:1px solid #e1e9e4; }.legal-modal h2 { margin:0 0 4px; color:#173a2a; font-size:24px; }.legal-modal p { margin:0; color:#738279; font-size:9px; }.legal-modal > header > button { border:0; color:#61736a; background:transparent; font-size:24px; cursor:pointer; }
+.legal-modal-scroll { min-height:0; overflow-y:auto; padding:15px 22px; display:grid; gap:12px; }.legal-modal-scroll > label,.legal-form-row label { display:grid; gap:5px; }.legal-modal-scroll label > span { color:#3b5c4a; font-size:9px; font-weight:800; }.legal-modal-scroll label > span small { color:#8a978f; font-weight:500; }.legal-modal-scroll input,.legal-modal-scroll select,.legal-modal-scroll textarea { width:100%; padding:10px 11px; border:1px solid #d5e2d9; border-radius:10px; outline:0; color:#18392b; background:#fbfdfb; font:inherit; font-size:10px; }.legal-modal-scroll textarea { resize:vertical; }.legal-form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.legal-dropzone { min-height:82px; padding:13px; display:flex!important; grid-template-columns:none!important; flex-direction:row; align-items:center; gap:11px; border:1px dashed #a9c7b4; border-radius:13px; color:#2c694b; background:#f3f8f4; cursor:pointer; }.legal-dropzone.ready { border-style:solid; background:#eaf5ed; }.legal-dropzone input { display:none; }.legal-dropzone > svg { flex:0 0 38px; width:38px; height:38px; padding:10px; border-radius:11px; color:#fff; background:#2c7450; }.legal-dropzone > span { min-width:0; display:grid; gap:3px; }.legal-dropzone strong { font-size:10px; }.legal-dropzone small { overflow:hidden; color:#73827a; font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+.legal-modal > footer { padding:13px 22px 17px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2eae5; }.legal-modal footer button:first-child { min-height:42px; padding:0 15px; border:1px solid #d5e1d9; border-radius:11px; color:#65766c; background:#fff; font:inherit; font-size:9px; font-weight:800; cursor:pointer; }.legal-modal button:disabled { opacity:.5; cursor:not-allowed; }
+
+@media (max-width:760px) {
+  .payments-hero { min-height:0; padding:22px 19px; }.payments-hero h1 { font-size:29px; }.payments-metrics { display:none; }.payments-workspace { height:auto; max-height:none; min-height:0; overflow:visible; }.payments-list-panel { overflow:auto; }.payment-detail { overflow:visible; }.payment-detail-head { position:relative; }.payment-email-button { margin-top:8px; }
+  .legal-head { min-height:0; padding:19px; align-items:stretch; flex-direction:column; }.legal-head > button { width:100%; }.legal-toolbar { align-items:stretch; flex-direction:column; }.legal-toolbar > label { min-width:0; flex:none; }.legal-toolbar > span { display:none; }.legal-document { grid-template-columns:44px minmax(0,1fr); }.legal-file-icon { width:44px; }.legal-document-actions { grid-column:1/-1; justify-content:flex-end; }.legal-document-actions a,.legal-document-actions button { flex:1; justify-content:center; }.legal-form-row { grid-template-columns:1fr; }.legal-modal-overlay { padding:0; }.legal-modal { width:100%; height:100dvh; max-height:100dvh; border-radius:0; }.legal-modal-scroll { padding:14px 17px; }.legal-modal > header,.legal-modal > footer { padding-right:17px; padding-left:17px; }.legal-modal > footer { align-items:stretch; flex-direction:column-reverse; }.legal-modal > footer button { width:100%; }
+}
 @media (max-width:560px) { .biotech-worker-tabs { grid-template-columns:1fr; }.biotech-entry-fields { grid-template-columns:1fr; }.biotech-entry-fields .field:last-child { grid-column:auto; }.biotech-home-numbers,.biotech-home-recent > div { grid-template-columns:1fr; }.biotech-home-welcome { min-height:260px; padding:28px 23px; }.biotech-home-recent > header { align-items:flex-start; flex-direction:column; }.biotech-cultivation-alert-list article { grid-template-columns:45px 1fr; padding:13px; }.biotech-alert-date,.biotech-alert-status { grid-column:2; }.biotech-alert-date span { white-space:normal; }.biotech-cultivation-alerts h2 { font-size:24px; } }
 
 .biotech-code-secondary-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:9px; }

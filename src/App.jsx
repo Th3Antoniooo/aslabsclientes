@@ -22,6 +22,7 @@ const WorkerDashboard = lazy(() => import('./pages/WorkerDashboard.jsx'))
 const Biotechnology = lazy(() => import('./pages/Biotechnology.jsx'))
 const Procurement = lazy(() => import('./pages/Procurement.jsx'))
 const Payments = lazy(() => import('./pages/Payments.jsx'))
+const LegalDocuments = lazy(() => import('./pages/LegalDocuments.jsx'))
 const EmailDeliveries = lazy(() => import('./pages/EmailDeliveries.jsx'))
 const Assistance = lazy(() => import('./pages/Assistance.jsx'))
 
@@ -76,6 +77,7 @@ const VIEW_MODULE = {
   analistas: 'analysts',
   proveedores: 'procurement',
   pagos: 'payments',
+  legales: 'legal_documents',
   correos: 'notifications',
 }
 
@@ -86,6 +88,7 @@ function canOpen(user, nextView) {
   if (nextView === 'dashboard' && user?.activeWorker) return true
   if (nextView === 'asistencia') return ['admin', 'client'].includes(user?.role)
   if (nextView === 'pagos') return ['admin', 'client'].includes(user?.role)
+  if (nextView === 'legales') return ['admin', 'client'].includes(user?.role)
   if (nextView === 'biotecnologia' && user?.role !== 'admin') {
     return Boolean(user?.activeWorker?.biotechnologyAccess || user?.activeWorker?.canCreateBiotechnologyCodes)
   }
@@ -109,7 +112,7 @@ export default function App() {
 
   useEffect(() => {
     if (user && !canOpen(user, view)) {
-      const fallback = ['proveedores', 'dashboard', 'pagos', 'asistencia', 'operaciones', 'biotecnologia', 'ordenes', 'tracking', 'dna', 'zonas', 'resultados', 'analistas', 'cuenta']
+      const fallback = ['proveedores', 'dashboard', 'pagos', 'legales', 'asistencia', 'operaciones', 'biotecnologia', 'ordenes', 'tracking', 'dna', 'zonas', 'resultados', 'analistas', 'cuenta']
         .find((candidate) => canOpen(user, candidate))
       setView(fallback || 'cuenta')
     }
@@ -234,6 +237,7 @@ export default function App() {
           {view === 'resultados' && <Resultados user={user} />}
           {view === 'proveedores' && <Procurement user={user} notify={notify} />}
           {view === 'pagos' && <Payments user={user} notify={notify} />}
+          {view === 'legales' && <LegalDocuments user={user} notify={notify} />}
           {view === 'asistencia' && <Assistance user={user} notify={notify} />}
           {view === 'correos' && user.role === 'admin' && <EmailDeliveries />}
           {view === 'analistas' && user.role === 'admin' && <Analysts notify={notify} />}

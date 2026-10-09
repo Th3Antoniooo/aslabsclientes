@@ -4,7 +4,6 @@ import { query } from './db.js'
 import { body, json, methodNotAllowed } from './http.js'
 import { sendPaymentRequestEmail } from './email.js'
 
-const TEST_RECIPIENT = 'antonioavg041@gmail.com'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const allowedMime = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
 let schemaPromise
@@ -28,7 +27,6 @@ function paymentConfiguration() {
       account: text(process.env.PAYMENT_BANK_ACCOUNT, 120),
       cci: text(process.env.PAYMENT_BANK_CCI, 120),
     },
-    email: { testMode:true, recipient:TEST_RECIPIENT },
     fiscal: {
       enabled:credentialsReady && seriesReady,
       credentialsReady,
@@ -68,10 +66,14 @@ function ensureSchema() {
       fiscal_status text NOT NULL DEFAULT 'not_issued' CHECK (fiscal_status IN ('not_issued','pending','issued','failed')),
       fiscal_document_id text,
       fiscal_document_url text,
+      payment_email_sent_at timestamptz,
+      payment_email_sent_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )`)
     await query(`CREATE INDEX IF NOT EXISTS client_payment_requests_client_time_idx ON client_payment_requests(client_user_id,created_at DESC)`)
+    await query(`ALTER TABLE client_payment_requests ADD COLUMN IF NOT EXISTS payment_email_sent_at timestamptz`)
+    await query(`ALTER TABLE client_payment_requests ADD COLUMN IF NOT EXISTS payment_email_sent_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL`)
     await query(`CREATE INDEX IF NOT EXISTS client_payment_requests_status_time_idx ON client_payment_requests(status,created_at DESC)`)
     await query(`CREATE TABLE IF NOT EXISTS client_payment_receipts (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -244,8 +246,7 @@ export default async function handler(req, res) {
          VALUES ($1,$2,$3,'payment','high','client','payments')`,
         [service.client_user_id,'Nueva solicitud de pago',`${payment.code} · ${concept} · ${currency === 'USD' ? 'US$' : 'S/'} ${amount.toFixed(2)}`],
       )
-      const email = await sendPaymentRequestEmail(service.id, { ...payment,documentType })
-      return json(res, 201, { payment,email })
+      return json(res, 201, { payment })
     }
 
     if (req.method === 'PATCH') {
@@ -295,6 +296,17 @@ export default async function handler(req, res) {
         if (!isAdmin(user)) return json(res, 403, { error:'Solo un administrador puede cancelar solicitudes.' })
         await query(`UPDATE client_payment_requests SET status='cancelled',updated_at=NOW() WHERE id=$1`, [payment.id])
         return json(res, 200, { ok:true })
+      }
+
+      if (payload.action === 'send_email') {
+        if (!isAdmin(user)) return json(res, 403, { error:'Solo un administrador puede enviar correos de pago.' })
+        const email = await sendPaymentRequestEmail(payment.service_id, { ...payment,documentType:payment.document_type })
+        if (email.status !== 'sent') return json(res, 502, { error:email.error || 'No fue posible enviar el correo de pago.' })
+        await query(
+          `UPDATE client_payment_requests SET payment_email_sent_at=NOW(),payment_email_sent_by_user_id=$2,updated_at=NOW() WHERE id=$1`,
+          [payment.id,user.id],
+        )
+        return json(res, 200, { ok:true,email })
       }
 
       if (payload.action === 'issue_fiscal_document') {

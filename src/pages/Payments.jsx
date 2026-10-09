@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { IcoCheck, IcoCreditCard, IcoFile, IcoPlus, IcoSearch, IcoSend, IcoShield } from '../components/Icons.jsx'
+import { IcoCheck, IcoCreditCard, IcoFile, IcoMail, IcoPlus, IcoSearch, IcoSend, IcoShield } from '../components/Icons.jsx'
 import { api } from '../data/api.js'
 
 const STATUS = {
@@ -87,10 +87,7 @@ export default function Payments({ user, notify }) {
     try {
       const result = await api.createPaymentRequest(requestForm)
       setRequestForm(emptyRequest); setRequestOpen(false)
-      const emailMessage = result.email?.status === 'sent'
-        ? `Solicitud creada. Correo de prueba enviado solo a ${config.email?.recipient || 'la cuenta autorizada'}.`
-        : 'Solicitud creada. El correo quedó registrado para pruebas.'
-      notify?.(emailMessage)
+      notify?.('Solicitud creada. El correo no se envió; puedes enviarlo cuando decidas.')
       await load(result.payment?.id || '')
     } catch (requestError) { setError(requestError.message) }
     finally { setBusy(false) }
@@ -139,6 +136,17 @@ export default function Payments({ user, notify }) {
     finally { setBusy(false) }
   }
 
+  const sendPaymentEmail = async () => {
+    if (!selected) return
+    setBusy(true); setError('')
+    try {
+      await api.sendPaymentEmail(selected.id)
+      notify?.(`Correo de pago enviado a ${selected.client_email}.`)
+      await load(selected.id)
+    } catch (requestError) { setError(requestError.message) }
+    finally { setBusy(false) }
+  }
+
   return <div className="payments-page">
     <section className="payments-hero">
       <div className="payments-hero-copy">
@@ -152,7 +160,6 @@ export default function Payments({ user, notify }) {
       </div>
     </section>
 
-    {admin && config.email?.testMode && <div className="payments-test-banner"><span>PRUEBAS</span><p>Todos los correos están bloqueados y solo se entregan a <strong>{config.email.recipient}</strong>.</p></div>}
     {error && <div className="form-error payments-error">{error}</div>}
 
     <section className="payments-metrics">
@@ -183,7 +190,7 @@ export default function Payments({ user, notify }) {
         {selected ? <>
           <header className="payment-detail-head">
             <div><span className="payment-code">{selected.code}</span><h2>{selected.concept}</h2><p>{selected.service_code} · {selected.service_name}{admin ? ` · ${selected.client_name}` : ''}</p></div>
-            <div className="payment-total"><small>Total solicitado</small><strong>{money(selected.amount,selected.currency)}</strong><span className={`payment-status ${STATUS[selected.status]?.tone}`}>{STATUS[selected.status]?.label}</span></div>
+            <div className="payment-total"><small>Total solicitado</small><strong>{money(selected.amount,selected.currency)}</strong><span className={`payment-status ${STATUS[selected.status]?.tone}`}>{STATUS[selected.status]?.label}</span>{admin && <button type="button" className="payment-email-button" onClick={sendPaymentEmail} disabled={busy}><IcoMail /> {selected.payment_email_sent_at ? 'Reenviar correo' : 'Enviar correo'}</button>}{admin && selected.payment_email_sent_at && <small className="payment-email-date">Último envío: {date(selected.payment_email_sent_at,true)}</small>}</div>
           </header>
 
           <div className="payment-detail-grid">
@@ -278,7 +285,6 @@ export default function Payments({ user, notify }) {
               <label className="wide"><span>Nota para el cliente</span><textarea rows="3" value={requestForm.notes} onChange={(event) => setRequestForm({ ...requestForm,notes:event.target.value })} placeholder="Indicaciones adicionales" /></label>
             </div>
           </details>
-          <div className="payment-modal-test"><IcoShield /><span><strong>Modo de pruebas</strong><small>Los correos solo se envían a {config.email?.recipient || 'la cuenta autorizada'}.</small></span></div>
         </div>
         <footer><button type="button" className="btn btn-ghost" onClick={() => setRequestOpen(false)}>Cancelar</button><button type="submit" className="payments-primary" disabled={busy}>{busy ? 'Creando…' : <><IcoSend /> Crear solicitud</>}</button></footer>
       </form>
