@@ -2,6 +2,7 @@ import { hashPassword, requireUser } from '../_lib/auth.js'
 import { body, json, methodNotAllowed } from '../_lib/http.js'
 import { query } from '../_lib/db.js'
 import adminDocumentsHandler from '../_lib/admin-documents-handler.js'
+import { sendAccountCredentialsEmail } from '../_lib/email.js'
 
 export default async function handler(req, res) {
   if (req.query?.documents === '1') return adminDocumentsHandler(req, res)
@@ -21,6 +22,34 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const payload = await body(req)
+    if (payload.action === 'send_credentials') {
+      const recipient = String(payload.recipient || '').trim().toLowerCase()
+      const password = String(payload.password || '')
+      if (!payload.userId || !recipient || !password) {
+        return json(res, 400, { error: 'Completa el destinatario y las credenciales.' })
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+        return json(res, 400, { error: 'El correo del destinatario no es válido.' })
+      }
+      const accounts = await query(
+        `SELECT id,email,dni,full_name FROM users WHERE id=$1 AND status='active'`,
+        [payload.userId],
+      )
+      const account = accounts[0]
+      if (!account) return json(res, 404, { error: 'La cuenta ya no está disponible.' })
+      const delivery = await sendAccountCredentialsEmail({
+        userId: account.id,
+        recipient,
+        fullName: account.full_name,
+        username: account.email || account.dni,
+        password,
+        message: String(payload.message || ''),
+      })
+      if (delivery.status !== 'sent') {
+        return json(res, 503, { error: delivery.error || 'No fue posible enviar las credenciales.' })
+      }
+      return json(res, 200, { sent: true, recipient })
+    }
     const email = String(payload.email || '').trim().toLowerCase()
     const dni = String(payload.dni || '').trim()
     if (!email && !dni) return json(res, 400, { error: 'Ingresa un correo electrónico, un DNI o ambos.' })

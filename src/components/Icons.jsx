@@ -83,6 +83,16 @@ export const IcoFile = (p) => (
     <path d="M6 2h8l4 4v16H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" /><path d="M14 2v5h5M8 13h8M8 17h6" />
   </svg>
 )
+export const IcoCopy = (p) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" {...base} {...p}>
+    <rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+  </svg>
+)
+export const IcoMail = (p) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" {...base} {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" />
+  </svg>
+)
 export const IcoFolder = (p) => (
   <svg width="18" height="18" viewBox="0 0 24 24" {...base} {...p}>
     <path d="M3 7.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7l-2-3H5a2 2 0 0 0-2 2v2.5Z" />

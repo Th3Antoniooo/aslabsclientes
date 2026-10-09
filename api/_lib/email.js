@@ -46,6 +46,7 @@ export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU S
       <td style="padding:13px 16px;color:#748078;width:155px;vertical-align:top;border-bottom:1px solid #e5ebe7;font-size:13px;text-transform:uppercase;letter-spacing:.5px">${escapeHtml(row.label)}</td>
       <td style="padding:13px 16px;color:#173c29;font-weight:700;vertical-align:top;border-bottom:1px solid #e5ebe7;font-size:15px;line-height:1.45">${escapeHtml(row.value)}</td>
     </tr>`).join('')
+  const detailsTable = detailRows ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7faf8;border:1px solid #dce7df;border-radius:16px;overflow:hidden">${detailRows}</table>` : ''
   const button = buttonUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:26px"><tr><td style="border-radius:14px;background:#19583b"><a href="${escapeHtml(buttonUrl)}" style="display:inline-block;padding:16px 26px;color:#fff;text-decoration:none;font-size:15px;font-weight:700">${escapeHtml(buttonLabel || 'Abrir documento')} &nbsp;→</a></td></tr></table>` : ''
   return `<!doctype html>
 <html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
@@ -59,7 +60,7 @@ export function renderEmailTemplate({ context, eyebrow = 'ACTUALIZACIÓN DE TU S
       <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="background:#fff1d8;border:1px solid #f3d195;border-radius:999px;padding:8px 13px;color:#a85b16;font-size:11px;font-weight:700;letter-spacing:1.5px">${escapeHtml(eyebrow)}</td></tr></table>
       <h1 style="margin:18px 0 12px;font-size:31px;line-height:1.16;color:#123a27;letter-spacing:-.6px">${escapeHtml(headline)}</h1>
       <p style="margin:0 0 26px;font-size:16px;line-height:1.75;color:#52645a">Hola <strong style="color:#183c2a">${escapeHtml(context.client_name || 'cliente')}</strong>, ${escapeHtml(intro)}</p>
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7faf8;border:1px solid #dce7df;border-radius:16px;overflow:hidden">${detailRows}</table>
+      ${detailsTable}
       ${extraHtml}
       ${button}
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:30px;border-top:1px solid #e2eae4"><tr><td style="padding-top:20px;font-size:12px;line-height:1.65;color:#7a8880">Este es un correo automático. Por favor, no respondas a este mensaje.<br>Para gestionar tu servicio, ingresa al portal de clientes de AS Labs.</td></tr></table>
@@ -137,6 +138,57 @@ async function send({ serviceId, eventKey, eventType, subject, eyebrow, headline
       `UPDATE email_deliveries SET status='failed',attempts=attempts+1,error_message=$2,updated_at=NOW() WHERE event_key=$1`,
       [eventKey,String(error.message || error).slice(0,500)],
     ).catch(() => {})
+    return { status: 'failed', error: error.message }
+  }
+}
+
+export async function sendAccountCredentialsEmail({ userId, recipient, fullName, username, password, message = '' }) {
+  const eventKey = `account_credentials:${userId}:${crypto.randomUUID()}`
+  const eventType = 'account_credentials'
+  const subject = 'Tus credenciales de acceso · AS LABS'
+  const context = { client_user_id: userId, client_name: fullName }
+  let deliveryId = null
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      return { status: 'pending_configuration', error: 'El servicio de correo no está configurado.' }
+    }
+    deliveryId = await deliveryRecord({ eventKey, eventType, context, recipient, subject })
+    if (!deliveryId) return { status: 'duplicate', error: 'Este envío ya fue procesado.' }
+    const messageText = clean(message) || `🎉 ¡Tu panel de clientes está activo!\n\n🌐 Ingresa: https://clientes.aslaboratorios.com\n👤 Usuario: ${username}\n🔐 Contraseña: ${password}`
+    const messageHtml = escapeHtml(messageText).replace(/\r?\n/g, '<br>')
+    const html = renderEmailTemplate({
+      context,
+      eyebrow: 'ACCESO AL PORTAL',
+      headline: 'Tu panel de clientes está activo',
+      intro: 'tu cuenta ya está lista. Usa las siguientes credenciales para ingresar al portal de clientes.',
+      details: [],
+      extraHtml: messageHtml ? `<div style="margin-top:20px;padding:18px;border:1px solid #dce7df;border-radius:16px;background:#f7faf8;color:#52645a;font-size:14px;line-height:1.7">${messageHtml}</div>` : '',
+      buttonLabel: 'Ingresar al panel',
+      buttonUrl: 'https://clientes.aslaboratorios.com',
+    })
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': eventKey,
+      },
+      body: JSON.stringify({ from: FROM, to: [recipient], subject, html }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(result.message || `Resend respondió ${response.status}`)
+    await query(
+      `UPDATE email_deliveries SET status='sent',provider_message_id=$2,provider_last_event='sent',attempts=attempts+1,error_message=NULL,sent_at=NOW(),updated_at=NOW() WHERE id=$1`,
+      [deliveryId,result.id || null],
+    )
+    return { status: 'sent', id: result.id }
+  } catch (error) {
+    if (deliveryId) {
+      await query(
+        `UPDATE email_deliveries SET status='failed',attempts=attempts+1,error_message=$2,updated_at=NOW() WHERE id=$1`,
+        [deliveryId,String(error.message || error).slice(0,500)],
+      ).catch(() => {})
+    }
     return { status: 'failed', error: error.message }
   }
 }

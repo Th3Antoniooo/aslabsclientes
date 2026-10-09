@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../data/api.js'
 import DocumentationCenter from '../components/DocumentationCenter.jsx'
-import { IcoCheck, IcoFile, IcoPlus, IcoShield, IcoUser } from '../components/Icons.jsx'
+import { IcoCheck, IcoCopy, IcoFile, IcoMail, IcoPlus, IcoShield, IcoUser } from '../components/Icons.jsx'
 
 const actions = [
   ['view', 'Ver'],
@@ -11,6 +11,18 @@ const actions = [
 ]
 
 const blankUser = { fullName: '', email: '', dni: '', company: '', roleId: '', password: '', confirmPassword: '' }
+
+const credentialsMessage = ({ fullName, username, password }) => `🎉 ¡Tu panel de clientes está activo!
+
+Hola ${fullName}, tu acceso a AS Laboratorios ya está listo. 🧪
+
+🌐 Ingresa: https://clientes.aslaboratorios.com
+👤 Usuario: ${username}
+🔐 Contraseña: ${password}
+
+✨ Desde tu panel podrás revisar tus servicios, resultados, documentos y el avance de tus solicitudes.
+
+📌 Guarda estas credenciales en un lugar seguro. Si necesitas ayuda, nuestro equipo está disponible para orientarte.`
 
 export default function UserManagement({ notify }) {
   const [tab, setTab] = useState('users')
@@ -24,6 +36,13 @@ export default function UserManagement({ notify }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [createdAccess, setCreatedAccess] = useState(null)
+  const [accessMessage, setAccessMessage] = useState('')
+  const [accessRecipient, setAccessRecipient] = useState('')
+  const [credentialError, setCredentialError] = useState('')
+  const [copyComplete, setCopyComplete] = useState(false)
+  const [emailComplete, setEmailComplete] = useState(false)
+  const [sendingCredentials, setSendingCredentials] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -57,7 +76,21 @@ export default function UserManagement({ notify }) {
     setSaving(true)
     setError('')
     try {
-      await api.createUser(userForm)
+      const submitted = { ...userForm }
+      const result = await api.createUser(submitted)
+      const username = submitted.email.trim() || submitted.dni.trim()
+      const access = {
+        userId: result.user.id,
+        fullName: submitted.fullName.trim(),
+        username,
+        password: submitted.password,
+      }
+      setCreatedAccess(access)
+      setAccessMessage(credentialsMessage(access))
+      setAccessRecipient(submitted.email.trim())
+      setCredentialError('')
+      setCopyComplete(false)
+      setEmailComplete(false)
       setShowUser(false)
       setUserForm((current) => ({ ...blankUser, roleId: current.roleId }))
       await load()
@@ -66,6 +99,60 @@ export default function UserManagement({ notify }) {
       setError(requestError.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const closeCredentials = () => {
+    setCreatedAccess(null)
+    setAccessMessage('')
+    setAccessRecipient('')
+    setCredentialError('')
+    setCopyComplete(false)
+    setEmailComplete(false)
+  }
+
+  const copyCredentials = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(accessMessage)
+      } else {
+        const temporary = document.createElement('textarea')
+        temporary.value = accessMessage
+        temporary.style.position = 'fixed'
+        temporary.style.opacity = '0'
+        document.body.appendChild(temporary)
+        temporary.select()
+        document.execCommand('copy')
+        temporary.remove()
+      }
+      setCopyComplete(true)
+      setCredentialError('')
+      notify('Credenciales copiadas. Ya puedes enviarlas al cliente.')
+    } catch {
+      setCredentialError('No fue posible copiar el texto. Selecciónalo manualmente e inténtalo nuevamente.')
+    }
+  }
+
+  const sendCredentials = async () => {
+    if (!accessRecipient.trim()) {
+      setCredentialError('Ingresa el correo al que deseas enviar las credenciales.')
+      return
+    }
+    setSendingCredentials(true)
+    setCredentialError('')
+    try {
+      await api.sendUserCredentials({
+        userId: createdAccess.userId,
+        recipient: accessRecipient.trim(),
+        password: createdAccess.password,
+        message: accessMessage,
+      })
+      setEmailComplete(true)
+      notify(`Credenciales enviadas a ${accessRecipient.trim()}.`)
+    } catch (requestError) {
+      setCredentialError(requestError.message)
+    } finally {
+      setSendingCredentials(false)
     }
   }
 
@@ -270,6 +357,51 @@ export default function UserManagement({ notify }) {
             {error && <div className="form-error">{error}</div>}
             <div className="modal-actions"><button className="btn btn-ghost" type="button" onClick={() => setShowUser(false)}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? 'Creando…' : 'Crear usuario'}</button></div>
           </form>
+        </div>
+      )}
+
+      {createdAccess && (
+        <div className="modal-overlay credentials-overlay" onClick={closeCredentials}>
+          <section className="modal credentials-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="credentials-heading">
+              <span className="credentials-success"><IcoCheck /></span>
+              <div>
+                <span>Cuenta creada correctamente</span>
+                <h2>Credenciales listas para compartir</h2>
+                <p>Puedes ajustar el mensaje, copiarlo o enviarlo directamente por correo.</p>
+              </div>
+            </header>
+
+            <div className="credentials-identity">
+              <div><span>Usuario</span><strong>{createdAccess.username}</strong></div>
+              <div><span>Contraseña</span><strong>{createdAccess.password}</strong></div>
+            </div>
+
+            <label className="credentials-editor">
+              <span>Mensaje para el cliente</span>
+              <textarea value={accessMessage} onChange={(event) => { setAccessMessage(event.target.value); setCopyComplete(false); setEmailComplete(false) }} rows="10" />
+              <small>El usuario y la contraseña ya fueron colocados automáticamente.</small>
+            </label>
+
+            <label className="field credentials-recipient">
+              <span>Enviar por correo a</span>
+              <div>
+                <IcoMail />
+                <input type="email" value={accessRecipient} onChange={(event) => { setAccessRecipient(event.target.value); setEmailComplete(false) }} placeholder="cliente@correo.com" />
+              </div>
+            </label>
+
+            {credentialError && <div className="form-error">{credentialError}</div>}
+            <div className="credentials-status" aria-live="polite">
+              {copyComplete && <span><IcoCheck /> Texto copiado</span>}
+              {emailComplete && <span><IcoCheck /> Correo enviado</span>}
+            </div>
+            <div className="modal-actions credentials-actions">
+              <button className="btn btn-ghost" type="button" onClick={closeCredentials}>Cerrar</button>
+              <button className="btn btn-soft credentials-copy" type="button" onClick={copyCredentials}><IcoCopy /> {copyComplete ? 'Copiado' : 'Copiar credenciales'}</button>
+              <button className="btn btn-primary" type="button" onClick={sendCredentials} disabled={sendingCredentials}><IcoMail /> {sendingCredentials ? 'Enviando…' : emailComplete ? 'Enviado' : 'Enviar por correo'}</button>
+            </div>
+          </section>
         </div>
       )}
 

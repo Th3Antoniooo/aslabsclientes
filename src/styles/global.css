@@ -3099,6 +3099,47 @@ body { background-image: radial-gradient(circle at 84% 5%,rgba(239,162,58,.13),t
 .password-create-note { display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid #d5e3d9; border-radius: 11px; color: var(--text-1); background: var(--surface-green); font-size: 8px; line-height: 1.55; }
 .password-create-note svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--green-700); }
 
+.credentials-overlay { z-index: 930; }
+.credentials-modal { width: min(720px,94vw); padding: 28px; }
+.credentials-heading { display: flex; align-items: flex-start; gap: 15px; }
+.credentials-success { width: 48px; height: 48px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 15px; color: #fff; background: var(--green-700); box-shadow: 0 12px 28px rgba(25,88,59,.22); }
+.credentials-success svg { width: 23px; height: 23px; stroke-width: 2.2; }
+.credentials-heading > div > span { color: var(--green-700); font-size: 9px; font-weight: 800; }
+.credentials-heading h2 { margin: 4px 0 5px; font-size: 23px; line-height: 1.15; letter-spacing: -.03em; }
+.credentials-heading p { margin: 0; color: var(--text-1); font-size: 10px; line-height: 1.55; }
+.credentials-identity { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 21px; overflow: hidden; border-radius: 15px; background: rgba(255,255,255,.17); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.credentials-identity > div { min-width: 0; padding: 15px 17px; background: var(--green-900); }
+.credentials-identity span,.credentials-identity strong { display: block; }
+.credentials-identity span { color: rgba(255,255,255,.62); font-size: 8px; font-weight: 700; }
+.credentials-identity strong { margin-top: 5px; overflow-wrap: anywhere; color: #fff; font-size: 13px; }
+.credentials-editor { display: block; margin-top: 18px; }
+.credentials-editor > span { display: block; margin-bottom: 7px; color: var(--text-1); font-size: 9px; font-weight: 750; }
+.credentials-editor textarea { width: 100%; min-height: 210px; resize: vertical; padding: 15px 16px; border: 1px solid #c9d9ce; border-radius: 14px; color: var(--green-900); background: #fbfdfb; font: inherit; font-size: 11px; line-height: 1.65; outline: 0; }
+.credentials-editor textarea:focus { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(42,116,76,.11); }
+.credentials-editor small { display: block; margin-top: 6px; color: var(--text-2); font-size: 8px; }
+.credentials-recipient { margin-top: 16px; }
+.credentials-recipient > div { display: flex; align-items: center; gap: 9px; margin-top: 7px; padding: 0 12px; border: 1px solid #c9d9ce; border-radius: 12px; background: #fff; }
+.credentials-recipient > div:focus-within { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(42,116,76,.11); }
+.credentials-recipient svg { flex: 0 0 auto; color: var(--green-700); }
+.credentials-recipient input { min-width: 0; flex: 1; border: 0; box-shadow: none; background: transparent; }
+.credentials-status { min-height: 25px; display: flex; flex-wrap: wrap; gap: 7px; padding-top: 10px; }
+.credentials-status span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 999px; color: var(--green-700); background: var(--surface-green); font-size: 8px; font-weight: 750; }
+.credentials-status svg { width: 12px; height: 12px; }
+.credentials-actions { align-items: center; flex-wrap: wrap; }
+.credentials-actions .credentials-copy { margin-left: auto; border-color: #b9d3c1; color: var(--green-800); background: var(--surface-green); }
+.credentials-actions .btn svg { width: 15px; height: 15px; }
+
+@media (max-width: 640px) {
+  .credentials-modal { padding: 21px; }
+  .credentials-heading h2 { font-size: 20px; }
+  .credentials-identity { grid-template-columns: 1fr; }
+  .credentials-editor textarea { min-height: 245px; }
+  .credentials-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .credentials-actions .btn { width: 100%; }
+  .credentials-actions .credentials-copy { margin-left: 0; }
+  .credentials-actions .btn-primary { grid-column: 1 / -1; }
+}
+
 @media (max-width: 1260px) {
   .client-dashboard-hero { grid-template-columns: minmax(0,1.1fr) 340px; }
   .client-priority-grid { grid-template-columns: 1fr; }

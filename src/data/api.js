@@ -77,6 +77,10 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
+  sendUserCredentials: (payload) => request('/api/admin/users', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'send_credentials', ...payload }),
+  }),
   updateUser: (payload) => request('/api/admin/users', {
     method: 'PATCH',
     body: JSON.stringify(payload),
