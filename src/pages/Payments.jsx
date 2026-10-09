@@ -52,13 +52,6 @@ export default function Payments({ user, notify }) {
   const [upload,setUpload] = useState(emptyUpload)
   const [reviewNotes,setReviewNotes] = useState('')
 
-  useEffect(() => {
-    if (!requestOpen) return undefined
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = previousOverflow }
-  }, [requestOpen])
-
   const load = async (preferred = '') => {
     setLoading(true)
     try {
@@ -267,9 +260,9 @@ export default function Payments({ user, notify }) {
       </article>
     </section>
 
-    {requestOpen && <div className="modal-overlay payment-modal-overlay" onMouseDown={() => setRequestOpen(false)}>
-      <form className="payment-request-modal" onSubmit={createRequest} onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><span className="eyebrow">Nueva cobranza</span><h2>Solicitar pago</h2><p>Solo necesitas elegir la orden, indicar el concepto y el importe.</p></div><button type="button" className="modal-close" onClick={() => setRequestOpen(false)}>×</button></header>
+    {requestOpen && <div className="modal-overlay payment-modal-overlay" role="presentation" onClick={() => setRequestOpen(false)}>
+      <form className="payment-request-modal" role="dialog" aria-modal="true" aria-labelledby="payment-request-title" onSubmit={createRequest} onClick={(event) => event.stopPropagation()}>
+        <header><div><span className="eyebrow">Nueva cobranza</span><h2 id="payment-request-title">Solicitar pago</h2><p>Elige la orden, indica el concepto y el importe.</p></div><button type="button" className="modal-close" onClick={() => setRequestOpen(false)} aria-label="Cerrar">×</button></header>
         <div className="payment-request-scroll">
           <div className="payment-request-grid">
             <label className="wide"><span>Orden y cliente</span><select value={requestForm.serviceId} onChange={(event) => setRequestForm({ ...requestForm,serviceId:event.target.value })} required><option value="">Seleccionar orden…</option>{data.services.map((service) => <option value={service.id} key={service.id}>{service.code} · {service.client_name} · {service.name}</option>)}</select></label>
