@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { IcoArrow, IcoCalendar, IcoCheck, IcoDna, IcoDrop, IcoFile, IcoLeaf, IcoLocation, IcoMap, IcoPlus, IcoShield, IcoUsers } from '../components/Icons.jsx'
+import { IcoArrow, IcoCalendar, IcoCheck, IcoCreditCard, IcoDna, IcoDrop, IcoFile, IcoLeaf, IcoLocation, IcoMap, IcoPlus, IcoShield, IcoUsers } from '../components/Icons.jsx'
 import ServiceWorkflowModal from '../components/ServiceWorkflowModal.jsx'
 import { api } from '../data/api.js'
 import banner from '../assets/aslabs-banner.webp'
@@ -39,6 +39,41 @@ function serviceProgress(service) {
 function formatShortDate(value) {
   if (!value) return 'Sin fecha'
   return new Date(value).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function paymentAmount(payment) {
+  return new Intl.NumberFormat('es-PE', {
+    style: 'currency',
+    currency: payment.currency || 'PEN',
+    minimumFractionDigits: 2,
+  }).format(Number(payment.amount || 0))
+}
+
+function ClientPendingPayments({ payments, go }) {
+  if (!payments.length) return null
+  return (
+    <section className="client-payment-alert anim-in d2" aria-label="Pagos pendientes">
+      <header>
+        <span className="client-payment-alert-icon"><IcoCreditCard /></span>
+        <div>
+          <span>Pagos pendientes</span>
+          <h2>{payments.length === 1 ? 'Tienes un pago por completar' : `Tienes ${payments.length} pagos por completar`}</h2>
+          <p>Revisa el importe y adjunta el comprobante cuando realices el pago.</p>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={() => go('pagos')}>Ver pagos <IcoArrow /></button>
+      </header>
+      <div className="client-payment-alert-list">
+        {payments.slice(0, 3).map((payment) => (
+          <button type="button" key={payment.id} onClick={() => go('pagos')}>
+            <span><strong>{payment.concept}</strong><small>{payment.code} · {payment.service_code}</small></span>
+            <span><b>{paymentAmount(payment)}</b><em>{payment.status === 'rejected' ? 'Corregir comprobante' : 'Pendiente'}</em></span>
+            <IcoArrow />
+          </button>
+        ))}
+        {payments.length > 3 && <div className="client-payment-alert-more">+{payments.length - 3} pagos adicionales</div>}
+      </div>
+    </section>
+  )
 }
 
 function ClientServiceCard({ service, prominent = false, onOpen, go }) {
@@ -151,7 +186,7 @@ function ClientCrewStatus({ crews, go }) {
   )
 }
 
-function ClientDashboard({ go, user, services, crews, counts, loading, selectedService, setSelectedService, notify }) {
+function ClientDashboard({ go, user, services, crews, payments, counts, loading, selectedService, setSelectedService, notify }) {
   const pendingServices = services.filter((service) => service.status === 'pending')
   const activeServices = services.filter((service) => ['accepted', 'in_progress'].includes(service.status))
   const completedServices = services.filter((service) => service.status === 'completed')
@@ -180,6 +215,8 @@ function ClientDashboard({ go, user, services, crews, counts, loading, selectedS
           <div><span>Completados</span><strong>{loading ? '—' : counts.completed}</strong><small>Historial disponible</small></div>
         </div>
       </section>
+
+      <ClientPendingPayments payments={payments} go={go} />
 
       <section className="client-priority-section anim-in d2">
         <header className="client-priority-head">
@@ -254,6 +291,7 @@ export default function Dashboard({ go, user, notify }) {
   const [services, setServices] = useState([])
   const [userCount, setUserCount] = useState(0)
   const [crews, setCrews] = useState([])
+  const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedService, setSelectedService] = useState(null)
 
@@ -263,11 +301,13 @@ export default function Dashboard({ go, user, notify }) {
       api.services(),
       isAdmin ? api.users() : Promise.resolve({ users: [] }),
       isAdmin ? Promise.resolve({ crews: [] }) : api.tracking().catch(() => ({ crews: [] })),
-    ]).then(([serviceData, userData, trackingData]) => {
+      isAdmin ? Promise.resolve({ payments: [] }) : api.payments().catch(() => ({ payments: [] })),
+    ]).then(([serviceData, userData, trackingData, paymentData]) => {
       if (!active) return
       setServices(serviceData.services)
       setUserCount(userData.users.filter((account) => account.status === 'active').length)
       setCrews(trackingData.crews || [])
+      setPayments(paymentData.payments || [])
     }).catch(() => {}).finally(() => active && setLoading(false))
     return () => { active = false }
   }, [isAdmin])
@@ -276,11 +316,12 @@ export default function Dashboard({ go, user, notify }) {
     if (isAdmin) return undefined
     let active = true
     const interval = setInterval(() => {
-      Promise.all([api.tracking(), api.services()])
-        .then(([trackingResult, serviceResult]) => {
+      Promise.all([api.tracking(), api.services(), api.payments()])
+        .then(([trackingResult, serviceResult, paymentResult]) => {
           if (!active) return
           setCrews(trackingResult.crews || [])
           setServices(serviceResult.services || [])
+          setPayments(paymentResult.payments || [])
         })
         .catch(() => {})
     }, 10000)
@@ -295,6 +336,7 @@ export default function Dashboard({ go, user, notify }) {
     active: services.filter((service) => ['accepted', 'in_progress'].includes(service.status)).length,
     completed: services.filter((service) => service.status === 'completed').length,
   }), [services])
+  const pendingPayments = useMemo(() => payments.filter((payment) => ['pending', 'rejected'].includes(payment.status)), [payments])
 
   const stats = isAdmin
     ? [
@@ -317,6 +359,7 @@ export default function Dashboard({ go, user, notify }) {
         user={user}
         services={services}
         crews={crews}
+        payments={pendingPayments}
         counts={counts}
         loading={loading}
         selectedService={selectedService}

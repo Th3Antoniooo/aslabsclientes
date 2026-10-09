@@ -39,6 +39,7 @@ export default function Sidebar({ view, setView, user, onLogout, quickWorkerExit
           (!user.activeWorker?.codeCreatorOnly || ['dashboard', 'biotecnologia', 'operaciones', 'cuenta'].includes(item.id))
           &&
           (!item.module || user.role === 'admin' || (item.id === 'dashboard' && user.activeWorker) || (['pagos','legales'].includes(item.id) && user.role === 'client') || user.permissions?.[item.module]?.view)
+          && (item.id !== 'correos' || user.role === 'admin')
           && (item.id !== 'asistencia' || ['admin', 'client'].includes(user.role))
           && (item.id !== 'biotecnologia' || user.role === 'admin' || user.activeWorker?.biotechnologyAccess || user.activeWorker?.canCreateBiotechnologyCodes)
           && (item.id !== 'operaciones' || !user.activeWorker || user.activeWorker?.canUseEquipment)

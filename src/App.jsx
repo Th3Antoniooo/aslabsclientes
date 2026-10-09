@@ -89,6 +89,7 @@ function canOpen(user, nextView) {
   if (nextView === 'asistencia') return ['admin', 'client'].includes(user?.role)
   if (nextView === 'pagos') return ['admin', 'client'].includes(user?.role)
   if (nextView === 'legales') return ['admin', 'client'].includes(user?.role)
+  if (nextView === 'correos') return user?.role === 'admin'
   if (nextView === 'biotecnologia' && user?.role !== 'admin') {
     return Boolean(user?.activeWorker?.biotechnologyAccess || user?.activeWorker?.canCreateBiotechnologyCodes)
   }
