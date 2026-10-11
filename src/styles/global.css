@@ -3037,6 +3037,26 @@ body { background-image: radial-gradient(circle at 84% 5%,rgba(239,162,58,.13),t
 .final-report-review { margin-top:12px; padding:14px; border:1px solid #b8d1bf; border-radius:14px; background:#f2f8f4; }.final-report-review > div { display:flex; align-items:center; gap:10px; }.final-report-review > div svg { width:22px; color:var(--green-700); }.final-report-review > div strong,.final-report-review > div small { display:block; }.final-report-review > div strong { font-size:12px; }.final-report-review > div small { margin-top:2px; color:var(--text-2); font-size:9px; }.final-report-review .field { margin:12px 0 0; }.final-report-review .field > span { display:flex; align-items:center; gap:5px; }.final-report-review .field > span small { margin:0; font-weight:500; }.final-report-review .final-report-review-error { display:block; margin-top:10px; }.final-report-review footer { display:flex; justify-content:flex-end; gap:9px; margin-top:10px; }
 .final-report-generate { display:grid; grid-template-columns:46px 1fr auto; align-items:center; gap:12px; margin-top:14px; padding:14px; border:1px solid #c5dbc9; border-radius:14px; background:#eef7f1; }.final-report-generate strong,.final-report-generate small { display:block; }.final-report-generate strong { font-size:12px; }.final-report-generate small { margin-top:3px; color:var(--text-1); font-size:9px; }
 .final-report-narrative { grid-column:2 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }.final-report-narrative .field { margin:0; }.final-report-narrative textarea { min-height:88px; resize:vertical; }
+.final-report-signatures { grid-column:2 / -1; padding:12px; border:1px solid #c8dbcd; border-radius:13px; background:rgba(255,255,255,.82); }
+.final-report-signatures > header { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.final-report-signatures > header strong,.final-report-signatures > header small { display:block; }
+.final-report-signatures > header strong { color:var(--green-900); font-size:11px; }
+.final-report-signatures > header small { max-width:610px; margin-top:3px; color:var(--text-2); font-size:8px; line-height:1.45; }
+.final-report-signatures-empty { min-height:48px; display:flex; align-items:center; gap:9px; margin-top:10px; padding:10px 12px; border:1px dashed #c8d9cd; border-radius:10px; color:var(--text-2); background:#f8fbf9; font-size:8px; }
+.final-report-signatures-empty svg { width:18px; color:var(--green-700); }
+.final-report-signature-list { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.final-report-signature-list article { min-width:0; display:grid; grid-template-columns:30px minmax(180px,.8fr) minmax(250px,1.2fr) 28px; align-items:center; gap:9px; padding:9px; border:1px solid #d5e2d8; border-radius:11px; background:#fff; }
+.final-report-signature-number { width:28px; height:28px; display:grid; place-items:center; border-radius:9px; color:#fff; background:var(--green-800); font-size:9px; font-weight:850; }
+.final-report-signature-list .field { margin:0; }
+.final-report-signature-upload { min-width:0; min-height:48px; display:flex; align-items:center; gap:9px; padding:7px 9px; border:1px dashed #a8c2af; border-radius:10px; color:var(--green-700); background:#f8fbf9; cursor:pointer; }
+.final-report-signature-upload.ready { border-style:solid; border-color:#8eb89a; background:#f2f8f4; }
+.final-report-signature-upload input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.final-report-signature-upload > svg { width:19px; flex:0 0 auto; }
+.final-report-signature-upload img { width:76px; height:36px; flex:0 0 auto; object-fit:contain; border-radius:6px; background:#fff; }
+.final-report-signature-upload span { min-width:0; }
+.final-report-signature-upload strong,.final-report-signature-upload small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.final-report-signature-upload strong { font-size:8px; }.final-report-signature-upload small { margin-top:2px; color:var(--text-2); font-size:7px; }
+.final-report-signature-remove { width:27px; height:27px; border:0; border-radius:50%; color:#a33f38; background:#fff0ef; cursor:pointer; font-size:17px; line-height:1; }
 .final-report-manual { margin-top:12px; padding-top:10px; border-top:1px solid var(--stroke); }.final-report-manual > summary { color:var(--text-1); cursor:pointer; font-size:9px; font-weight:750; }.final-report-manual > summary small { color:var(--text-2); font-weight:500; }
 .final-report-form {
   display: grid;
@@ -3246,7 +3266,9 @@ body { background-image: radial-gradient(circle at 84% 5%,rgba(239,162,58,.13),t
   .workflow-result-main { grid-template-columns:1fr 1fr; }.workflow-result-main .field:first-child { grid-column:1 / -1; }.workflow-result-extra,.workflow-result-group-data { grid-template-columns:1fr 1fr; }.parameter-range-graph { grid-template-columns:42px 1fr 42px; }.parameter-range-graph > strong { grid-column:1 / -1; grid-row:2; }
   .workflow-result-photos { grid-template-columns:1fr; }.workflow-result-photo-grid { grid-template-columns:1fr; }.workflow-result-photo-grid figcaption { grid-template-columns:1fr; }
   .final-report-pending,.workflow-results-entry > footer { align-items:stretch; flex-direction:column; }.final-report-pending .btn,.workflow-results-entry > footer .btn { width:100%; }
-  .final-report-generate { grid-template-columns:42px 1fr; }.final-report-generate .btn { grid-column:1/-1; width:100%; }.final-report-narrative { grid-column:1/-1; grid-template-columns:1fr; }
+  .final-report-generate { grid-template-columns:42px 1fr; }.final-report-generate .btn { grid-column:1/-1; width:100%; }.final-report-narrative,.final-report-signatures { grid-column:1/-1; }.final-report-narrative { grid-template-columns:1fr; }
+  .final-report-signatures > header { align-items:stretch; flex-direction:column; }.final-report-signatures > header .btn { width:100%; }
+  .final-report-signature-list article { grid-template-columns:30px minmax(0,1fr) 28px; }.final-report-signature-upload { grid-column:2 / -1; }
   .final-report-review footer { flex-direction:column; }.final-report-review footer .btn { width:100%; }
   .workflow-final-report > header { grid-template-columns: 38px minmax(0,1fr); }
   .workflow-final-report > header .badge { grid-column: 2; justify-self: start; }

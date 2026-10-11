@@ -76,6 +76,13 @@ async function readFinalReport(file) {
   }
 }
 
+async function readAnalystSignature(file) {
+  if (!file) return null
+  if (file.size > 2_500_000) throw new Error('La imagen de firma no puede superar los 2.5 MB.')
+  const compressed = await compressPhoto(file)
+  return { fileName: compressed.fileName, mimeType: compressed.mimeType, dataUrl: compressed.dataUrl }
+}
+
 function fileSizeLabel(bytes = 0) {
   if (bytes < 1_000_000) return `${Math.max(1, Math.round(bytes / 1000))} KB`
   return `${(bytes / 1_000_000).toFixed(1)} MB`
@@ -195,6 +202,7 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
   const [finalReport, setFinalReport] = useState(null)
   const [reportNotes, setReportNotes] = useState('')
   const [reportNarrative, setReportNarrative] = useState({ interpretation: '', notes: '', observations: '' })
+  const [reportSignatures, setReportSignatures] = useState([])
   const [resultRows, setResultRows] = useState([])
   const [activeResultSample, setActiveResultSample] = useState('')
   const [resultPhotos, setResultPhotos] = useState([])
@@ -495,13 +503,42 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
   }
 
   const generateReport = async () => {
+    if (reportSignatures.some((item) => !item.analystId)) {
+      setError('Selecciona el analista de cada firma o elimina la fila vacía.')
+      return
+    }
     setWorking(true); setError('')
     try {
-      const result = await api.generateFinalReport(service.id, reportNarrative)
-      setData(result); setReportNarrative({ interpretation: '', notes: '', observations: '' }); onChanged?.()
+      const analystSignatures = reportSignatures
+        .filter((item) => item.analystId)
+        .map(({ analystId, dataUrl }) => ({ analystId, dataUrl: dataUrl || null }))
+      const result = await api.generateFinalReport(service.id, { ...reportNarrative, analystSignatures })
+      setData(result); setReportNarrative({ interpretation: '', notes: '', observations: '' }); setReportSignatures([]); onChanged?.()
       notify('Informe generado y enviado a Luis, Andy y Antonio para aprobación.')
     } catch (requestError) { setError(requestError.message) }
     finally { setWorking(false) }
+  }
+
+  const addReportSignature = () => {
+    if (reportSignatures.length >= 6) return
+    setReportSignatures((current) => [...current, { key: `${Date.now()}-${Math.random()}`, analystId: '', dataUrl: '', fileName: '' }])
+  }
+
+  const updateReportSignature = (key, values) => setReportSignatures((current) => current.map((item) => item.key === key ? { ...item, ...values } : item))
+
+  const chooseReportSignature = async (event, key) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setWorking(true); setError('')
+    try {
+      const signature = await readAnalystSignature(file)
+      updateReportSignature(key, signature)
+    } catch (signatureError) {
+      setError(signatureError.message)
+    } finally {
+      setWorking(false)
+      event.target.value = ''
+    }
   }
 
   const reviewReport = async (reportId, decision) => {
@@ -950,6 +987,30 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
                   <label className="field"><span>Interpretación</span><textarea value={reportNarrative.interpretation} maxLength="1800" onChange={(event) => setReportNarrative((current) => ({ ...current, interpretation: event.target.value }))} placeholder="Interpretación técnica de los resultados" /></label>
                   <label className="field"><span>Notas</span><textarea value={reportNarrative.notes} maxLength="1200" onChange={(event) => setReportNarrative((current) => ({ ...current, notes: event.target.value }))} placeholder="Notas o alcance del informe" /></label>
                   <label className="field"><span>Observaciones</span><textarea value={reportNarrative.observations} maxLength="1800" onChange={(event) => setReportNarrative((current) => ({ ...current, observations: event.target.value }))} placeholder="Observaciones adicionales" /></label>
+                </div>
+                <div className="final-report-signatures">
+                  <header>
+                    <div><strong>Firmas de analistas</strong><small>Solo se mostrarán en este informe final. Las firmas institucionales de Antonio, Natasha y Luis se agregan automáticamente.</small></div>
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={working || reportSignatures.length >= 6 || !(data.analysts?.length)} onClick={addReportSignature}>Agregar firma</button>
+                  </header>
+                  {reportSignatures.length === 0 ? <div className="final-report-signatures-empty"><IcoUser /><span>Agrega únicamente a los analistas que deben firmar este resultado.</span></div> : <div className="final-report-signature-list">
+                    {reportSignatures.map((signature, index) => {
+                      const analyst = data.analysts?.find((item) => item.id === signature.analystId)
+                      return <article key={signature.key}>
+                        <span className="final-report-signature-number">{index + 1}</span>
+                        <label className="field"><span>Analista</span><select value={signature.analystId} onChange={(event) => updateReportSignature(signature.key, { analystId: event.target.value })} required>
+                          <option value="">Seleccionar analista asignado</option>
+                          {(data.analysts || []).map((item) => <option key={item.id} value={item.id} disabled={reportSignatures.some((selected) => selected.key !== signature.key && selected.analystId === item.id)}>{item.full_name}</option>)}
+                        </select></label>
+                        <label className={`final-report-signature-upload ${signature.dataUrl ? 'ready' : ''}`}>
+                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseReportSignature(event, signature.key)} />
+                          {signature.dataUrl ? <img src={signature.dataUrl} alt={`Firma de ${analyst?.full_name || 'analista'}`} /> : <IcoFile />}
+                          <span><strong>{signature.fileName || 'Adjuntar firma'}</strong><small>{signature.dataUrl ? 'Imagen lista para este informe' : 'PNG, JPG o WebP. Opcional si ya existe una firma registrada.'}</small></span>
+                        </label>
+                        <button type="button" className="final-report-signature-remove" aria-label="Quitar firma" onClick={() => setReportSignatures((current) => current.filter((item) => item.key !== signature.key))}>×</button>
+                      </article>
+                    })}
+                  </div>}
                 </div>
               </div>}
 

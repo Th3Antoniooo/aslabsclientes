@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import PDFDocument from 'pdfkit'
-import { natashaSignature, setupPdfStyle, signatureForName } from './pdf-style.js'
+import { drawSignatureGrid, setupPdfStyle } from './pdf-style.js'
 
 const C = {
   green: '#08a94f', deep: '#155b35', ink: '#151a17', muted: '#5f6963',
@@ -171,23 +171,26 @@ function rangeCard(doc, row, x, y, width) {
   doc.fillColor(C.ink).font('Arial-Bold').fontSize(7).text(`${value} ${clean(row.unit, '')}`, x + width - 84, y + 30, { width: 76, align: 'right' })
 }
 
-function signatures(doc, { y, responsibleName, approver, approvalStatus }) {
-  const gap = 8, width = (P.width - gap) / 2, height = 68
-  const items = [
-    { name: clean(responsibleName, 'Responsable técnico'), role: 'Responsable técnico · firma automática', image: signatureForName(responsibleName) },
-    { name: 'Natasha Escobar Arana', role: 'Gerente General', image: natashaSignature() },
-  ]
-  items.forEach((item, index) => {
-    const x = P.left + index * (width + gap)
-    doc.roundedRect(x, y, width, height, 7).fill(C.white).strokeColor(C.line).lineWidth(.65).stroke()
-    if (item.image) doc.image(item.image, x + 20, y + 3, { fit: [width - 40, 34], align: 'center' })
-    else doc.fillColor(C.deep).font('Arial-Bold').fontSize(7).text('FIRMA AUTOMÁTICA', x + 8, y + 18, { width: width - 16, align: 'center' })
-    doc.moveTo(x + 18, y + 39).lineTo(x + width - 18, y + 39).strokeColor('#9ca7a0').stroke()
-    doc.fillColor(C.ink).font('Arial-Bold').fontSize(7.3).text(item.name, x + 8, y + 45, { width: width - 16, align: 'center', height: 9, ellipsis: true })
-    doc.fillColor(C.muted).font('Arial').fontSize(6.8).text(item.role, x + 8, y + 56, { width: width - 16, align: 'center' })
+function signatures(doc, { y, approver, approvalStatus, analystSignatures = [] }) {
+  y = drawSignatureGrid(doc, {
+    y,
+    signers: analystSignatures.map((item) => ({
+      name: clean(item.fullName || item.name, 'Analista responsable'),
+      role: clean(item.specialty || item.role, 'Analista responsable'),
+      credential: clean(item.licenseNumber || item.credential, ''),
+      dataUrl: item.dataUrl || null,
+    })),
+    includeOfficials: true,
+    left: P.left,
+    width: P.width,
+    line: C.line,
+    ink: C.ink,
+    muted: C.muted,
+    pageBottom: P.bottom - 22,
+    heading: analystSignatures.length ? 'Firmas de analistas y validación institucional' : 'Validación institucional',
   })
-  if (approvalStatus === 'approved') doc.fillColor(C.muted).font('Arial').fontSize(6.8).text(`Aprobación digital: ${clean(approver?.full_name)} · ${date(approver?.approved_at, true)}`, P.left, y + height + 5, { width: P.width, align: 'center' })
-  return y + height + 14
+  if (approvalStatus === 'approved') doc.fillColor(C.muted).font('Arial').fontSize(6.8).text(`Aprobación digital: ${clean(approver?.full_name)} · ${date(approver?.approved_at, true)}`, P.left, y + 5, { width: P.width, align: 'center' })
+  return y + 18
 }
 
 function orderedEvidencePhotos(doc, evidencePhotos = []) {
@@ -226,7 +229,7 @@ function footer(doc, service) {
   }
 }
 
-export async function createFinalReportPdf({ service, results = [], samples = [], evidencePhotos = [], responsibleName, approver = null, approvalStatus = 'pending', report = {} }) {
+export async function createFinalReportPdf({ service, results = [], samples = [], evidencePhotos = [], analystSignatures = [], approver = null, approvalStatus = 'pending', report = {} }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margins: { top: 22, right: 28, bottom: 30, left: 28 }, bufferPages: true, info: { Title: `${reportCode(service)} - Informe de resultados`, Author: 'AS Laboratorios', Subject: service.service_type_name } })
     setupPdfStyle(doc)
@@ -320,7 +323,7 @@ export async function createFinalReportPdf({ service, results = [], samples = []
 
     if (y > P.bottom - 90) y = addPage()
     y = section(doc, 'Firmas responsables', y)
-    y = signatures(doc, { y, responsibleName, approver, approvalStatus })
+    y = signatures(doc, { y, analystSignatures, approver, approvalStatus })
     doc.fillColor(C.muted).font('Arial').fontSize(6.7).text('Este informe no debe reproducirse parcialmente sin autorización de AS Laboratorios. La interpretación se limita al alcance, método y muestras identificados.', P.left, y, { width: P.width, align: 'center' })
     footer(doc, service)
     doc.end()

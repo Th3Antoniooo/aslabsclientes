@@ -22,6 +22,7 @@ function ensureReportColumns() {
     reportColumnsPromise = Promise.all([
       query(`ALTER TABLE service_final_reports ADD COLUMN IF NOT EXISTS interpretation text`),
       query(`ALTER TABLE service_final_reports ADD COLUMN IF NOT EXISTS observations text`),
+      query(`ALTER TABLE service_final_reports ADD COLUMN IF NOT EXISTS analyst_signatures jsonb NOT NULL DEFAULT '[]'::jsonb`),
       query(`ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS title text`),
       query(`ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS note text`),
       query(`ALTER TABLE service_analysis_photos ADD COLUMN IF NOT EXISTS display_order integer NOT NULL DEFAULT 0`),
@@ -362,6 +363,50 @@ function validFinalReport(report) {
   return { ...report, fileSize: content.length }
 }
 
+function validSignatureImage(dataUrl) {
+  if (!dataUrl) return null
+  if (!/^data:image\/(?:png|jpe?g|webp);base64,/i.test(String(dataUrl)) || String(dataUrl).length > 420_000) return false
+  try {
+    const content = Buffer.from(String(dataUrl).split(',')[1] || '', 'base64')
+    return content.length && content.length <= 300_000 ? String(dataUrl) : false
+  } catch {
+    return false
+  }
+}
+
+async function selectedAnalystSignatures(serviceId, payload) {
+  const requested = Array.isArray(payload) ? payload : []
+  if (requested.length > 6) throw Object.assign(new Error('Puedes agregar como máximo 6 firmas de analistas.'), { status: 400 })
+  if (!requested.length) return []
+  const analystIds = requested.map((item) => String(item?.analystId || ''))
+  if (new Set(analystIds).size !== analystIds.length || analystIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) {
+    throw Object.assign(new Error('Selecciona analistas válidos y sin repetir.'), { status: 400 })
+  }
+  const analysts = await query(
+    `SELECT a.id,a.full_name,a.specialty,a.license_number
+     FROM worker_service_assignments wsa
+     JOIN analysts a ON a.id=wsa.analyst_id
+     WHERE wsa.service_id=$1 AND wsa.active=true AND a.status='active' AND a.id=ANY($2::uuid[])`,
+    [serviceId, analystIds],
+  )
+  if (analysts.length !== analystIds.length) {
+    throw Object.assign(new Error('Una de las firmas no corresponde a un analista asignado a este servicio.'), { status: 400 })
+  }
+  const byId = new Map(analysts.map((analyst) => [analyst.id, analyst]))
+  return requested.map((item) => {
+    const analyst = byId.get(String(item.analystId))
+    const dataUrl = validSignatureImage(item.dataUrl)
+    if (dataUrl === false) throw Object.assign(new Error(`La firma de ${analyst.full_name} no es una imagen válida o supera los 300 KB.`), { status: 400 })
+    return {
+      analystId: analyst.id,
+      fullName: analyst.full_name,
+      specialty: analyst.specialty || 'Analista responsable',
+      licenseNumber: analyst.license_number || null,
+      dataUrl,
+    }
+  })
+}
+
 const SPECTROPHOTOMETER_ANALYSES = new Set([
   'physchem-npk','physchem-phosphorus-total','physchem-phosphorus-available','physchem-orthophosphate',
   'physchem-calcium','physchem-magnesium','physchem-sulfur','physchem-aluminum','physchem-micronutrients','physchem-sulfate',
@@ -621,6 +666,12 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH' && payload.action === 'generate_final_report') {
     const context = await finalReportContext(serviceId)
     if (!context.results.length) return json(res, 409, { error: 'Primero guarda los resultados del análisis.' })
+    let analystSignatures
+    try {
+      analystSignatures = await selectedAnalystSignatures(serviceId, payload.analystSignatures)
+    } catch (signatureError) {
+      return json(res, signatureError.status || 400, { error: signatureError.message })
+    }
     const report = {
       interpretation: String(payload.interpretation || '').trim().slice(0, 1800),
       notes: String(payload.notes || '').trim().slice(0, 1200),
@@ -628,14 +679,14 @@ export default async function handler(req, res) {
     }
     const next = await query(`SELECT COALESCE(MAX(version),0)+1 AS version FROM service_final_reports WHERE service_id=$1`, [serviceId])
     const version = Number(next[0].version)
-    const pdf = await createFinalReportPdf({ ...context, report, approvalStatus: 'pending' })
+    const pdf = await createFinalReportPdf({ ...context, report, analystSignatures, approvalStatus: 'pending' })
     const fileName = `INFORME_${reportCode(context.service)}_v${version}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')
     const inserted = await query(
       `INSERT INTO service_final_reports
-       (service_id,version,file_name,mime_type,file_size,data_url,notes,interpretation,observations,is_current,approval_status,approval_requested_at,uploaded_by_user_id)
-       VALUES ($1,$2,$3,'application/pdf',$4,$5,$6,$7,$8,false,'pending',NOW(),$9)
+       (service_id,version,file_name,mime_type,file_size,data_url,notes,interpretation,observations,analyst_signatures,is_current,approval_status,approval_requested_at,uploaded_by_user_id)
+       VALUES ($1,$2,$3,'application/pdf',$4,$5,$6,$7,$8,$9::jsonb,false,'pending',NOW(),$10)
        RETURNING id,version,file_name,file_size,created_at`,
-      [serviceId, version, fileName, pdf.length, `data:application/pdf;base64,${pdf.toString('base64')}`, report.notes || 'Informe generado automáticamente desde los resultados registrados.', report.interpretation || null, report.observations || null, user.id],
+      [serviceId, version, fileName, pdf.length, `data:application/pdf;base64,${pdf.toString('base64')}`, report.notes || 'Informe generado automáticamente desde los resultados registrados.', report.interpretation || null, report.observations || null, JSON.stringify(analystSignatures), user.id],
     )
     await query(`INSERT INTO service_stage_events (service_id,stage_id,action,actor_user_id,note) VALUES ($1,NULL,'final_report_submitted',$2,$3)`, [serviceId,user.id,`Informe automático v${version} enviado a aprobación`])
     await notifyReportApprovers(service, version)
@@ -661,7 +712,7 @@ export default async function handler(req, res) {
     let approvedFileSize = report.file_size
     if (isAutomaticReport) {
       const context = await finalReportContext(serviceId)
-      const pdf = await createFinalReportPdf({ ...context, report: { interpretation: report.interpretation, notes: report.notes, observations: report.observations }, approvalStatus: 'approved', approver: { full_name: user.nombre, email: user.email, approved_at: approvedAt } })
+      const pdf = await createFinalReportPdf({ ...context, report: { interpretation: report.interpretation, notes: report.notes, observations: report.observations }, analystSignatures: report.analyst_signatures || [], approvalStatus: 'approved', approver: { full_name: user.nombre, email: user.email, approved_at: approvedAt } })
       approvedDataUrl = `data:application/pdf;base64,${pdf.toString('base64')}`
       approvedFileSize = pdf.length
     }

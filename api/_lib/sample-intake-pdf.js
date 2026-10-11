@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import PDFDocument from 'pdfkit'
-import { natashaSignature, setupPdfStyle, signatureForName } from './pdf-style.js'
+import { drawSignatureGrid, setupPdfStyle, signatureForName } from './pdf-style.js'
 
 const C = {
   green: '#559642', deep: '#153d26', dark: '#17221b', muted: '#66756c',
@@ -65,9 +65,6 @@ function textBox(doc, title, value, y, tone = 'green') {
   return y + h
 }
 function signatureCards(doc, record, y) {
-  const gap = 7
-  const width = (P.width - gap * 2) / 3
-  const height = 72
   const internalName = record.microbiologist_name || record.collected_by_name || 'Laboratorio AS Labs'
   const items = [
     {
@@ -75,29 +72,32 @@ function signatureCards(doc, record, y) {
       role: record.intake_type === 'aslabs_collection' ? 'Conformidad de toma o recojo' : 'Conformidad de entrega',
       image: signatureBuffer(record.client_signature_data_url),
     },
-    { name: internalName, role: 'Recepción y conformidad AS Labs', image: signatureBuffer(record.microbiologist_signature_data_url) || signatureForName(internalName), digital: Boolean(record.received_by_analyst_id) },
-    { name: 'Natasha Escobar Arana', role: 'Gerente General', image: natashaSignature() },
+    { name: internalName, role: 'Recepción y conformidad AS Labs', image: signatureBuffer(record.microbiologist_signature_data_url) || signatureForName(internalName) },
   ]
-  items.forEach((item, index) => {
-    const x = P.left + index * (width + gap)
-    doc.roundedRect(x, y, width, height, 8).fill(C.white).strokeColor(C.line).lineWidth(.7).stroke()
-    if (item.image) doc.image(item.image, x + 10, y + 3, { fit: [width - 20, 34], align: 'center', valign: 'center' })
-    else if (item.digital) {
-      doc.roundedRect(x + 22, y + 9, width - 44, 24, 6).fill('#edf7ef').strokeColor('#a8c8b1').lineWidth(.6).stroke()
-      doc.fillColor(C.deep).font('Arial-Bold').fontSize(8).text('IDENTIDAD DIGITAL REGISTRADA', x + 26, y + 17, { width: width - 52, align: 'center' })
-    } else doc.fillColor(C.muted).font('Arial-Italic').fontSize(8).text('Firma no consignada', x + 8, y + 15, { width: width - 16, align: 'center' })
-    doc.fillColor(C.dark).font('Arial-Bold').fontSize(8).text(item.name, x + 7, y + 40, { width: width - 14, height: 11, align: 'center', ellipsis: true })
-    doc.fillColor(C.muted).font('Arial').fontSize(8).text(item.role, x + 7, y + 55, { width: width - 14, height: 11, align: 'center', ellipsis: true })
+  return drawSignatureGrid(doc, {
+    y,
+    signers: items,
+    includeOfficials: true,
+    left: P.left,
+    width: P.width,
+    line: C.line,
+    ink: C.dark,
+    muted: C.muted,
+    pageBottom: 782,
+    heading: 'Conformidad y validación institucional',
   })
-  return y + height
 }
 function footer(doc) {
-  const previousBottom = doc.page.margins.bottom
-  doc.page.margins.bottom = 0
-  doc.moveTo(P.left, 803).lineTo(P.right, 803).strokeColor(C.line).lineWidth(.6).stroke()
-  doc.fillColor(C.muted).font('Arial').fontSize(8).text('AS LABORATORIOS · Copia del cliente · Documento electrónico verificable', P.left, 812, { width: 400, lineBreak: false })
-  doc.fillColor(C.muted).font('Arial').fontSize(8).text('Página 1 de 1', 457, 812, { width: 96, align: 'right', lineBreak: false })
-  doc.page.margins.bottom = previousBottom
+  const range = doc.bufferedPageRange()
+  for (let index = range.start; index < range.start + range.count; index += 1) {
+    doc.switchToPage(index)
+    const previousBottom = doc.page.margins.bottom
+    doc.page.margins.bottom = 0
+    doc.moveTo(P.left, 803).lineTo(P.right, 803).strokeColor(C.line).lineWidth(.6).stroke()
+    doc.fillColor(C.muted).font('Arial').fontSize(8).text('AS LABORATORIOS · Copia del cliente · Documento electrónico verificable', P.left, 812, { width: 400, lineBreak: false })
+    doc.fillColor(C.muted).font('Arial').fontSize(8).text(`Página ${index + 1} de ${range.count}`, 457, 812, { width: 96, align: 'right', lineBreak: false })
+    doc.page.margins.bottom = previousBottom
+  }
 }
 
 export function createSampleIntakePdf(record) {
@@ -153,6 +153,7 @@ export function createSampleIntakePdf(record) {
       y = textBox(doc, `Satisfacción del cliente · ${record.satisfaction_rating || 5} de 5`, record.satisfaction_notes || 'Servicio recibido conforme, sin comentarios adicionales.', y, 'amber') + 6
     }
 
+    if (y > 565) { doc.addPage(); y = 42 }
     y = section(doc, 'Firmas y autorización', y)
     y = signatureCards(doc, record, y + 5)
     doc.fillColor(C.muted).font('Arial').fontSize(8).text(
