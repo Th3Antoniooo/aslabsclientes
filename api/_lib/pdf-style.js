@@ -66,14 +66,14 @@ export function drawSignatureGrid(doc,{
   ink='#17221b',
   muted='#66756c',
   pageBottom=782,
-  heading='Firmas responsables',
+  heading='Firmas',
 }) {
   const items = [
+    ...(includeOfficials ? officialSignatureItems() : []),
     ...signers.map((signer) => ({
       ...signer,
       image: signer.image || signatureBuffer(signer.dataUrl) || signatureForName(signer.name),
     })),
-    ...(includeOfficials ? officialSignatureItems() : []),
   ].filter((item) => item.name)
   if (!items.length) return y
   const gap=8, columns=Math.min(3,items.length), boxW=(width-gap*(columns-1))/columns, boxH=78
@@ -104,5 +104,5 @@ export function drawOfficialSignatures(doc,{ y, signerName, signerRole='Responsa
   const signers = signerName
     ? [{ name: signerName, role: signerRole, image: signatureForName(signerName) }]
     : []
-  return drawSignatureGrid(doc,{ y, signers, includeOfficials:true, left, width, line, ink, muted, pageBottom, heading:'Firmas y validación institucional' })
+  return drawSignatureGrid(doc,{ y, signers, includeOfficials:true, left, width, line, ink, muted, pageBottom, heading:'Firmas' })
 }

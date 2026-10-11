@@ -141,6 +141,7 @@ async function workflowPayload(serviceId, user) {
     `SELECT r.id, r.version, r.file_name, r.mime_type, r.file_size, r.notes, r.interpretation, r.observations,
             r.is_current, r.approval_status, r.approval_requested_at, r.approved_at,
             r.rejection_notes, r.created_at,
+            CASE WHEN $2 = true THEN r.analyst_signatures ELSE '[]'::jsonb END AS analyst_signatures,
             CASE WHEN $2 = true THEN u.full_name ELSE NULL END AS uploaded_by,
             CASE WHEN $2 = true THEN approver.full_name ELSE NULL END AS approved_by
      FROM service_final_reports r
@@ -708,20 +709,28 @@ export default async function handler(req, res) {
     if (payload.decision !== 'approve') return json(res, 400, { error: 'La decisión no es válida.' })
     const approvedAt = new Date()
     const isAutomaticReport = /^INFORME_INF-/i.test(report.file_name || '')
+    let analystSignatures = Array.isArray(report.analyst_signatures) ? report.analyst_signatures : []
+    if (Object.prototype.hasOwnProperty.call(payload, 'analystSignatures')) {
+      try {
+        analystSignatures = await selectedAnalystSignatures(serviceId, payload.analystSignatures)
+      } catch (signatureError) {
+        return json(res, signatureError.status || 400, { error: signatureError.message })
+      }
+    }
     let approvedDataUrl = report.data_url
     let approvedFileSize = report.file_size
     if (isAutomaticReport) {
       const context = await finalReportContext(serviceId)
-      const pdf = await createFinalReportPdf({ ...context, report: { interpretation: report.interpretation, notes: report.notes, observations: report.observations }, analystSignatures: report.analyst_signatures || [], approvalStatus: 'approved', approver: { full_name: user.nombre, email: user.email, approved_at: approvedAt } })
+      const pdf = await createFinalReportPdf({ ...context, report: { interpretation: report.interpretation, notes: report.notes, observations: report.observations }, analystSignatures, approvalStatus: 'approved', approver: { full_name: user.nombre, email: user.email, approved_at: approvedAt } })
       approvedDataUrl = `data:application/pdf;base64,${pdf.toString('base64')}`
       approvedFileSize = pdf.length
     }
     await query(`UPDATE service_final_reports SET is_current=false WHERE service_id=$1 AND is_current=true`, [serviceId])
     await query(
       `UPDATE service_final_reports SET approval_status='approved',approved_by_user_id=$3,approved_at=$4,
-              rejection_notes=NULL,is_current=true,data_url=$5,file_size=$6
+              rejection_notes=NULL,is_current=true,data_url=$5,file_size=$6,analyst_signatures=$7::jsonb
        WHERE id=$1 AND service_id=$2`,
-      [report.id,serviceId,user.id,approvedAt,approvedDataUrl,approvedFileSize],
+      [report.id,serviceId,user.id,approvedAt,approvedDataUrl,approvedFileSize,JSON.stringify(analystSignatures)],
     )
     await query(`INSERT INTO service_stage_events (service_id,stage_id,action,actor_user_id,note) VALUES ($1,NULL,'final_report_approved',$2,$3)`, [serviceId,user.id,`Informe v${report.version} aprobado por ${user.nombre}`])
     await query(

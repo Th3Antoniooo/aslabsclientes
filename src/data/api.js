@@ -217,9 +217,9 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify({ action: 'generate_final_report', ...report }),
   }),
-  reviewFinalReport: (serviceId, reportId, decision, notes = '') => request(`/api/service-workflow?serviceId=${encodeURIComponent(serviceId)}`, {
+  reviewFinalReport: (serviceId, reportId, decision, notes = '', analystSignatures) => request(`/api/service-workflow?serviceId=${encodeURIComponent(serviceId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ action: 'review_final_report', reportId, decision, notes }),
+    body: JSON.stringify({ action: 'review_final_report', reportId, decision, notes, ...(Array.isArray(analystSignatures) ? { analystSignatures } : {}) }),
   }),
   assignServiceCrew: (serviceId, payload) => request(`/api/service-workflow?serviceId=${encodeURIComponent(serviceId)}`, {
     method: 'PATCH',

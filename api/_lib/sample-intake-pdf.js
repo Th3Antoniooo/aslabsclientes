@@ -84,7 +84,7 @@ function signatureCards(doc, record, y) {
     ink: C.dark,
     muted: C.muted,
     pageBottom: 782,
-    heading: 'Conformidad y validación institucional',
+    heading: '',
   })
 }
 function footer(doc) {
@@ -154,7 +154,7 @@ export function createSampleIntakePdf(record) {
     }
 
     if (y > 565) { doc.addPage(); y = 42 }
-    y = section(doc, 'Firmas y autorización', y)
+    y = section(doc, 'Firmas', y)
     y = signatureCards(doc, record, y + 5)
     doc.fillColor(C.muted).font('Arial').fontSize(8).text(
       'La firma del cliente acredita la recepción o toma indicada. Esta copia contiene la misma información conservada en la trazabilidad electrónica de la orden.',

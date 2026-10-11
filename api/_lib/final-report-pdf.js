@@ -187,7 +187,7 @@ function signatures(doc, { y, approver, approvalStatus, analystSignatures = [] }
     ink: C.ink,
     muted: C.muted,
     pageBottom: P.bottom - 22,
-    heading: analystSignatures.length ? 'Firmas de analistas y validación institucional' : 'Validación institucional',
+    heading: '',
   })
   if (approvalStatus === 'approved') doc.fillColor(C.muted).font('Arial').fontSize(6.8).text(`Aprobación digital: ${clean(approver?.full_name)} · ${date(approver?.approved_at, true)}`, P.left, y + 5, { width: P.width, align: 'center' })
   return y + 18
@@ -322,7 +322,7 @@ export async function createFinalReportPdf({ service, results = [], samples = []
     }
 
     if (y > P.bottom - 90) y = addPage()
-    y = section(doc, 'Firmas responsables', y)
+    y = section(doc, 'Firmas', y)
     y = signatures(doc, { y, analystSignatures, approver, approvalStatus })
     doc.fillColor(C.muted).font('Arial').fontSize(6.7).text('Este informe no debe reproducirse parcialmente sin autorización de AS Laboratorios. La interpretación se limita al alcance, método y muestras identificados.', P.left, y, { width: P.width, align: 'center' })
     footer(doc, service)

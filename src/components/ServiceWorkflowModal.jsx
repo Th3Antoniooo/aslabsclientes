@@ -179,6 +179,42 @@ function EquipmentTimer({ startedAt, endedAt }) {
   return <span className={`equipment-stopwatch ${endedAt ? 'stopped' : 'running'}`}><i />{hours}:{minutes}:{remaining}</span>
 }
 
+function signatureRows(report) {
+  return (Array.isArray(report?.analyst_signatures) ? report.analyst_signatures : []).map((item, index) => ({
+    key: `${item.analystId || 'firma'}-${index}`,
+    analystId: item.analystId || '',
+    dataUrl: item.dataUrl || '',
+    fileName: item.dataUrl ? 'Firma guardada' : '',
+  }))
+}
+
+function AnalystSignatureEditor({ signatures, analysts = [], working, onAdd, onUpdate, onFile, onRemove }) {
+  return <div className="final-report-signatures">
+    <header>
+      <div><strong>Firmas de analistas</strong><small>Antonio, Natasha y Luis aparecerán primero. Debajo se mostrarán únicamente los analistas que agregues aquí.</small></div>
+      <button type="button" className="btn btn-ghost btn-sm" disabled={working || signatures.length >= 6 || !analysts.length} onClick={onAdd}>Agregar firma de analista</button>
+    </header>
+    {signatures.length === 0 ? <div className="final-report-signatures-empty"><IcoUser /><span>Este informe todavía no tiene firmas adicionales de analistas.</span></div> : <div className="final-report-signature-list">
+      {signatures.map((signature, index) => {
+        const analyst = analysts.find((item) => item.id === signature.analystId)
+        return <article key={signature.key}>
+          <span className="final-report-signature-number">{index + 1}</span>
+          <label className="field"><span>Analista</span><select value={signature.analystId} onChange={(event) => onUpdate(signature.key, { analystId: event.target.value })} required>
+            <option value="">Seleccionar analista asignado</option>
+            {analysts.map((item) => <option key={item.id} value={item.id} disabled={signatures.some((selected) => selected.key !== signature.key && selected.analystId === item.id)}>{item.full_name}</option>)}
+          </select></label>
+          <label className={`final-report-signature-upload ${signature.dataUrl ? 'ready' : ''}`}>
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onFile(event, signature.key)} />
+            {signature.dataUrl ? <img src={signature.dataUrl} alt={`Firma de ${analyst?.full_name || 'analista'}`} /> : <IcoFile />}
+            <span><strong>{signature.fileName || 'Adjuntar firma'}</strong><small>{signature.dataUrl ? 'Imagen lista para este informe' : 'PNG, JPG o WebP. Opcional si ya existe una firma registrada.'}</small></span>
+          </label>
+          <button type="button" className="final-report-signature-remove" aria-label="Quitar firma" onClick={() => onRemove(signature.key)}>×</button>
+        </article>
+      })}
+    </div>}
+  </div>
+}
+
 export default function ServiceWorkflowModal({ service, user, onClose, onChanged, notify, onEditService }) {
   const isAdmin = user.role === 'admin'
   const isWorker = Boolean(user.activeWorker)
@@ -235,6 +271,7 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
         const codes = [...new Set(rows.map((row) => row.sampleCode).filter(Boolean))]
         setResultRows(rows)
         setActiveResultSample((current) => codes.includes(current) ? current : codes[0] || '')
+        setReportSignatures(signatureRows(result.finalReports?.find((report) => report.approval_status === 'pending')))
       }
       if (!silent) setResultPhotos((result.resultPhotos || []).map((photo, index) => ({ id: photo.id, fileName: photo.file_name, title: photo.title || photo.file_name?.replace(/\.[^.]+$/, '') || `Fotografía ${index + 1}`, note: photo.note || '', mimeType: photo.mime_type, dataUrl: photo.data_url })))
       setActivePanel((current) => current || (result.sampleGate?.required === false ? 'trace' : Number(result.sampleGate?.total || 0) === 0 ? 'sample' : 'trace'))
@@ -259,6 +296,7 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
     setSampleActionRequest({ key: 0, action: null })
     setReviewNotes('')
     setReviewError('')
+    setReportSignatures([])
     setActiveResultSample('')
   }, [service.id])
 
@@ -513,7 +551,7 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
         .filter((item) => item.analystId)
         .map(({ analystId, dataUrl }) => ({ analystId, dataUrl: dataUrl || null }))
       const result = await api.generateFinalReport(service.id, { ...reportNarrative, analystSignatures })
-      setData(result); setReportNarrative({ interpretation: '', notes: '', observations: '' }); setReportSignatures([]); onChanged?.()
+      setData(result); setReportNarrative({ interpretation: '', notes: '', observations: '' }); onChanged?.()
       notify('Informe generado y enviado a Luis, Andy y Antonio para aprobación.')
     } catch (requestError) { setError(requestError.message) }
     finally { setWorking(false) }
@@ -545,10 +583,17 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
     const notes = decision === 'reject'
       ? reviewNotes.trim() || 'Requiere corrección antes de su publicación.'
       : reviewNotes.trim()
+    if (decision === 'approve' && reportSignatures.some((item) => !item.analystId)) {
+      setReviewError('Selecciona el analista de cada firma o elimina la fila vacía.')
+      return
+    }
+    const analystSignatures = decision === 'approve'
+      ? reportSignatures.filter((item) => item.analystId).map(({ analystId, dataUrl }) => ({ analystId, dataUrl: dataUrl || null }))
+      : undefined
     setWorking(true); setError(''); setReviewError('')
     try {
-      const result = await api.reviewFinalReport(service.id, reportId, decision, notes)
-      setData(result); setReviewNotes(''); onChanged?.()
+      const result = await api.reviewFinalReport(service.id, reportId, decision, notes, analystSignatures)
+      setData(result); setReviewNotes(''); setReportSignatures([]); onChanged?.()
       notify(decision === 'approve' ? 'Informe aprobado y publicado para el cliente.' : 'Informe rechazado para corrección.')
     } catch (requestError) { setReviewError(requestError.message) }
     finally { setWorking(false) }
@@ -954,6 +999,15 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
 
               {pendingReport && data.canApproveReport && <div className="final-report-review">
                 <div><IcoShield /><span><strong>Aprobación autorizada</strong><small>Luis Guevara · Andy Espinales · Antonio Guevara</small></span></div>
+                <AnalystSignatureEditor
+                  signatures={reportSignatures}
+                  analysts={data.analysts || []}
+                  working={working}
+                  onAdd={addReportSignature}
+                  onUpdate={updateReportSignature}
+                  onFile={chooseReportSignature}
+                  onRemove={(key) => setReportSignatures((current) => current.filter((item) => item.key !== key))}
+                />
                 <label className="field"><span>Observación para la corrección <small>Opcional</small></span><input value={reviewNotes} onChange={(event) => { setReviewNotes(event.target.value); setReviewError('') }} placeholder="Ej. Corregir resultados, firma o interpretación" /></label>
                 {reviewError && <div className="form-error final-report-review-error">{reviewError}</div>}
                 <footer><button type="button" className="btn btn-ghost" disabled={working} onClick={() => reviewReport(pendingReport.id, 'reject')}>{working ? 'Procesando…' : 'Rechazar y corregir'}</button><button type="button" className="btn btn-primary" disabled={working} onClick={() => reviewReport(pendingReport.id, 'approve')}><IcoCheck /> {working ? 'Procesando…' : 'Aprobar y publicar'}</button></footer>
@@ -988,30 +1042,15 @@ export default function ServiceWorkflowModal({ service, user, onClose, onChanged
                   <label className="field"><span>Notas</span><textarea value={reportNarrative.notes} maxLength="1200" onChange={(event) => setReportNarrative((current) => ({ ...current, notes: event.target.value }))} placeholder="Notas o alcance del informe" /></label>
                   <label className="field"><span>Observaciones</span><textarea value={reportNarrative.observations} maxLength="1800" onChange={(event) => setReportNarrative((current) => ({ ...current, observations: event.target.value }))} placeholder="Observaciones adicionales" /></label>
                 </div>
-                <div className="final-report-signatures">
-                  <header>
-                    <div><strong>Firmas de analistas</strong><small>Solo se mostrarán en este informe final. Las firmas institucionales de Antonio, Natasha y Luis se agregan automáticamente.</small></div>
-                    <button type="button" className="btn btn-ghost btn-sm" disabled={working || reportSignatures.length >= 6 || !(data.analysts?.length)} onClick={addReportSignature}>Agregar firma</button>
-                  </header>
-                  {reportSignatures.length === 0 ? <div className="final-report-signatures-empty"><IcoUser /><span>Agrega únicamente a los analistas que deben firmar este resultado.</span></div> : <div className="final-report-signature-list">
-                    {reportSignatures.map((signature, index) => {
-                      const analyst = data.analysts?.find((item) => item.id === signature.analystId)
-                      return <article key={signature.key}>
-                        <span className="final-report-signature-number">{index + 1}</span>
-                        <label className="field"><span>Analista</span><select value={signature.analystId} onChange={(event) => updateReportSignature(signature.key, { analystId: event.target.value })} required>
-                          <option value="">Seleccionar analista asignado</option>
-                          {(data.analysts || []).map((item) => <option key={item.id} value={item.id} disabled={reportSignatures.some((selected) => selected.key !== signature.key && selected.analystId === item.id)}>{item.full_name}</option>)}
-                        </select></label>
-                        <label className={`final-report-signature-upload ${signature.dataUrl ? 'ready' : ''}`}>
-                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseReportSignature(event, signature.key)} />
-                          {signature.dataUrl ? <img src={signature.dataUrl} alt={`Firma de ${analyst?.full_name || 'analista'}`} /> : <IcoFile />}
-                          <span><strong>{signature.fileName || 'Adjuntar firma'}</strong><small>{signature.dataUrl ? 'Imagen lista para este informe' : 'PNG, JPG o WebP. Opcional si ya existe una firma registrada.'}</small></span>
-                        </label>
-                        <button type="button" className="final-report-signature-remove" aria-label="Quitar firma" onClick={() => setReportSignatures((current) => current.filter((item) => item.key !== signature.key))}>×</button>
-                      </article>
-                    })}
-                  </div>}
-                </div>
+                <AnalystSignatureEditor
+                  signatures={reportSignatures}
+                  analysts={data.analysts || []}
+                  working={working}
+                  onAdd={addReportSignature}
+                  onUpdate={updateReportSignature}
+                  onFile={chooseReportSignature}
+                  onRemove={(key) => setReportSignatures((current) => current.filter((item) => item.key !== key))}
+                />
               </div>}
 
               {isAdmin && <details className="final-report-manual"><summary>Usar un PDF externo <small>Opcional</small></summary>
