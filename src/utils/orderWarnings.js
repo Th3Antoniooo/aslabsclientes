@@ -23,9 +23,9 @@ export function orderWarning(service, { internal = false } = {}) {
   if (!service || service.status === 'completed' || service.archived_at) return null
   if (service.running_equipment_code) {
     const equipment = service.running_equipment_name || EQUIPMENT_LABELS[service.running_equipment_type] || 'Equipo'
-    if (!internal) return { tone: 'live', title: `${equipment} en uso`, detail: 'El laboratorio está utilizando este equipo durante el procesamiento del servicio.', panel: 'trace' }
+    if (!internal) return { tone: 'live', title: `Muestra en ${equipment}`, detail: 'La muestra de este servicio está siendo procesada en el equipo indicado.', panel: 'trace' }
     const overdue = service.running_equipment_due_at && new Date(service.running_equipment_due_at).getTime() < Date.now()
-    return { tone: overdue ? 'critical' : 'live', title: overdue ? `${equipment} excedió el tiempo` : `${equipment} sigue encendido`, detail: `${service.running_equipment_code} · inició ${new Date(service.running_equipment_started_at).toLocaleString('es-PE')}`, panel: 'equipment' }
+    return { tone: overdue ? 'critical' : 'live', title: overdue ? `Muestra excedió el tiempo en ${equipment}` : `Muestra en ${equipment}`, detail: `${service.running_equipment_code} · ingresó ${new Date(service.running_equipment_started_at).toLocaleString('es-PE')}`, panel: 'equipment' }
   }
   if (service.sample_intake_mode === 'none') return null
   if (!Number(service.received_samples || 0)) {

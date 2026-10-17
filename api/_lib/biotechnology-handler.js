@@ -392,11 +392,10 @@ async function startAssignment(payload,user) {
     const equipmentRows = await query(
       `SELECT e.* FROM laboratory_equipment e
        WHERE e.status='active' AND e.equipment_type='flow_cabinet'
-         AND NOT EXISTS (SELECT 1 FROM laboratory_equipment_runs r WHERE r.equipment_id=e.id AND r.status='running')
        ORDER BY e.code LIMIT 1`,
     )
     equipment = equipmentRows[0]
-    if (!equipment) fail('Todas las cabinas de flujo están ocupadas. Intenta cuando una quede libre.',409)
+    if (!equipment) fail('No hay una cabina de flujo activa configurada.',409)
     const runRows = await query(
       `INSERT INTO laboratory_equipment_runs
        (record_code,equipment_id,equipment_type,status,material_description,started_at,

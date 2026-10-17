@@ -198,18 +198,18 @@ export default function LabOperations({ user, notify }) {
     <div className="lab-ops-page">
       <section className="lab-ops-hero anim-in d1">
         <div className="lab-ops-hero-copy">
-          <span className="eyebrow">{quickWorker ? 'Registro rápido autorizado' : 'Control interno · equipos vinculados'}</span>
-          <h1>{quickWorker ? 'Equipo, destino e iniciar.' : 'Uso de equipos'}</h1>
-          <p>{quickWorker ? 'Solo tres pasos. El operador y la hora quedan registrados automáticamente.' : 'Inicia y finaliza cada operación con hora y responsable automáticos. Una misma carga puede quedar vinculada a varias órdenes.'}</p>
+          <span className="eyebrow">{quickWorker ? 'Registro rápido autorizado' : 'Control interno · muestras vinculadas'}</span>
+          <h1>{quickWorker ? 'Equipo, muestra e iniciar.' : 'Tiempo de muestras en equipos'}</h1>
+          <p>{quickWorker ? 'Solo tres pasos. El operador y la hora de ingreso de la muestra quedan registrados automáticamente.' : 'Registra cuánto tiempo permanece cada muestra en un equipo. Un mismo equipo puede procesar varias órdenes simultáneamente.'}</p>
           <div className="lab-ops-actions">
-            <button className="btn btn-accent" onClick={() => openRun()}><IcoPlus /> Iniciar uso de equipo</button>
+            <button className="btn btn-accent" onClick={() => openRun()}><IcoPlus /> Registrar muestra en equipo</button>
             {user.role === 'admin' && <button className="btn btn-ghost" onClick={() => setTab('equipment')}><IcoFlask /> Gestionar equipos</button>}
           </div>
         </div>
         <div className="lab-ops-machine">
           <div className="machine-orbit"><span /><span /><span /></div>
           <div className="machine-icon"><IcoFlask /></div>
-          <strong>{stats.running}</strong><span>equipos en uso ahora</span>
+          <strong>{stats.running}</strong><span>muestras en equipo ahora</span>
         </div>
       </section>
 
@@ -237,7 +237,7 @@ export default function LabOperations({ user, notify }) {
           {user.role === 'admin' && <button className={tab === 'nonconformities' ? 'active' : ''} onClick={() => setTab('nonconformities')}>No conformidades <span>{data.nonconformities.length}</span></button>}
           {user.role === 'admin' && <button className={tab === 'equipment' ? 'active' : ''} onClick={() => setTab('equipment')}>Equipos <span>{data.equipment.length}</span></button>}
         </div>
-        {tab === 'live' && <button className="btn btn-primary" onClick={() => openRun()}><IcoPlus /> Iniciar equipo</button>}
+        {tab === 'live' && <button className="btn btn-primary" onClick={() => openRun()}><IcoPlus /> Registrar muestra</button>}
         {tab === 'cycles' && <button className="btn btn-primary" onClick={() => openCycle()}><IcoPlus /> Nuevo ciclo</button>}
         {tab === 'releases' && <button className="btn btn-primary" onClick={() => openRelease()}><IcoPlus /> Nueva liberación</button>}
         {tab === 'nonconformities' && <button className="btn btn-primary" onClick={() => openNc()}><IcoPlus /> Reportar NC</button>}
@@ -252,10 +252,10 @@ export default function LabOperations({ user, notify }) {
               <div className="equipment-run-main"><span className="lab-equipment-icon"><IcoFlask /></span><div><small>{record.record_code}</small><h3>{record.equipment_code} · {record.equipment_name}</h3><p>{record.material_description}</p></div></div>
               <div className="equipment-run-links"><span>{record.work_area === 'biotechnology' ? 'Área vinculada' : 'Órdenes vinculadas'}</span><div>{record.work_area === 'biotechnology' ? <b>BIOTECNOLOGÍA</b> : record.services.map((service) => <b key={service.id}>{service.code}</b>)}</div></div>
               <div className="equipment-run-timing"><span>Operador</span><strong>{record.operator_name}</strong><small>Inicio: {displayDate(record.started_at)}</small>{record.expected_end_at && <small>Fin previsto: {displayDate(record.expected_end_at)}</small>}</div>
-              <div className="equipment-run-state">{record.overdue ? <Status value="nonconforming" /> : record.status === 'running' ? <Status value="pending" /> : <Status value="conforming" />}<small>{record.overdue ? 'Tiempo excedido' : record.status === 'running' ? 'En uso' : `Finalizado ${displayDate(record.ended_at)}`}</small></div>
+              <div className="equipment-run-state">{record.overdue ? <Status value="nonconforming" /> : record.status === 'running' ? <Status value="pending" /> : <Status value="conforming" />}<small>{record.overdue ? 'Tiempo de muestra excedido' : record.status === 'running' ? 'Muestra en equipo' : `Finalizado ${displayDate(record.ended_at)}`}</small></div>
               <div className="equipment-run-actions">{record.status === 'running' ? <button className="btn btn-primary" disabled={saving} onClick={() => finishRun(record)}><IcoCheck /> Terminar</button> : <a className="lab-pdf-link" href={`/api/services?labOperations=1&format=pdf&type=equipment-run&id=${record.id}`} target="_blank" rel="noreferrer"><IcoFile /> PDF de trazabilidad</a>}</div>
             </article>
-          ))}</div> : <div className="lab-empty"><span><IcoFlask /></span><h2>Aún no hay usos registrados</h2><p>Elige un equipo, vincula una o varias órdenes y pulsa Iniciar.</p><button className="btn btn-primary" onClick={() => openRun()}><IcoPlus /> Iniciar primer equipo</button></div>)}
+          ))}</div> : <div className="lab-empty"><span><IcoFlask /></span><h2>Aún no hay muestras registradas</h2><p>Elige un equipo, vincula una o varias órdenes y registra el ingreso de la muestra.</p><button className="btn btn-primary" onClick={() => openRun()}><IcoPlus /> Registrar primera muestra</button></div>)}
 
           {tab === 'cycles' && (data.cycles.length ? data.cycles.map((record) => (
             <article className="lab-record" key={record.id}>
@@ -307,7 +307,7 @@ export default function LabOperations({ user, notify }) {
               <span className={`modal-icon ${dialog.type === 'nonconformity' ? 'danger' : ''}`}>
                 {dialog.type === 'nonconformity' ? <IcoShield /> : dialog.type === 'release' ? <IcoCheck /> : <IcoFlask />}
               </span>
-              <div><span className="eyebrow">Trazabilidad interna</span><h2>{dialog.type === 'run' ? 'Iniciar uso de equipo' : `${dialog.values.id ? 'Editar' : 'Registrar'} ${dialog.type === 'cycle' ? 'autoclavado' : dialog.type === 'release' ? 'liberación de material' : dialog.type === 'nonconformity' ? 'no conformidad' : 'equipo'}`}</h2><p>{dialog.type === 'run' ? 'La hora y el operador se registrarán automáticamente al pulsar Iniciar.' : 'El registro quedará vinculado al expediente del servicio y tendrá su propio PDF.'}</p></div>
+              <div><span className="eyebrow">Trazabilidad interna</span><h2>{dialog.type === 'run' ? 'Registrar muestra en equipo' : `${dialog.values.id ? 'Editar' : 'Registrar'} ${dialog.type === 'cycle' ? 'autoclavado' : dialog.type === 'release' ? 'liberación de material' : dialog.type === 'nonconformity' ? 'no conformidad' : 'equipo'}`}</h2><p>{dialog.type === 'run' ? 'La hora de ingreso de esta muestra y el operador se registrarán automáticamente. El equipo puede tener otras muestras activas.' : 'El registro quedará vinculado al expediente del servicio y tendrá su propio PDF.'}</p></div>
             </div>
 
             {dialog.type === 'run' && quickWorker && <div className="equipment-quick-start">

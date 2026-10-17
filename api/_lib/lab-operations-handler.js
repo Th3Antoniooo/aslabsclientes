@@ -490,11 +490,6 @@ async function startEquipmentRun(payload, user) {
   if (!equipment || !equipmentTypes.includes(equipment.equipment_type)) {
     throw Object.assign(new Error('El equipo seleccionado no está disponible.'), { status: 400 })
   }
-  const busy = await query(
-    `SELECT id FROM laboratory_equipment_runs WHERE equipment_id=$1 AND status='running' LIMIT 1`,
-    [equipment.id],
-  )
-  if (busy[0]) throw Object.assign(new Error('Este equipo ya tiene un uso activo. Finalízalo antes de iniciar otro.'), { status: 409 })
   const services = serviceIds.length ? await query(
     `SELECT id FROM service_requests
      WHERE id=ANY($1::uuid[]) AND status IN ('accepted','in_progress') AND archived_at IS NULL
